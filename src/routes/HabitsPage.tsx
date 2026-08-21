@@ -216,7 +216,6 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
           </h2>
 
           <input
-            autoFocus
             placeholder="Habit name"
             value={name}
             onChange={(e) => setName(e.target.value)}

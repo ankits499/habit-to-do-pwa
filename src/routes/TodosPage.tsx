@@ -223,7 +223,6 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
           </h2>
 
           <input
-            autoFocus
             placeholder="What needs doing?"
             value={text}
             onChange={(e) => setText(e.target.value)}
