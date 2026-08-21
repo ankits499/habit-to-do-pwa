@@ -3,9 +3,10 @@ import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { DotStrip } from "../components/DotStrip";
 import { GrowthTree } from "../components/GrowthTree";
-import { CheckIcon, GearIcon, PlusIcon, XIcon } from "../components/icons";
+import { CheckIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
   useAddHabit,
+  useDeleteHabit,
   useHabitLogs,
   useHabits,
   useSetHabitArchived,
@@ -113,7 +114,9 @@ export function HabitsPage() {
         </div>
       </div>
 
-      {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <ReminderSettingsSheet habits={habits} onClose={() => setSettingsOpen(false)} />
+      )}
     </div>
   );
 }
@@ -291,7 +294,7 @@ function DateChip({
   );
 }
 
-function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
+function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: () => void }) {
   const { data: settings } = useReminderSettings();
   const update = useUpdateReminderSettings();
   const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
@@ -353,8 +356,64 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
           >
             Save
           </button>
+
+          {habits.length > 0 && (
+            <div className="mt-6 border-t border-[var(--line)] pt-4">
+              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                Manage habits
+              </h3>
+              <ul className="flex flex-col divide-y divide-[var(--line)]">
+                {habits.map((habit) => (
+                  <DeleteHabitRow key={habit.id} habit={habit} />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </BottomSheet>
+  );
+}
+
+function DeleteHabitRow({ habit }: { habit: Habit }) {
+  const remove = useDeleteHabit();
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <li className="flex items-center justify-between gap-2 py-2.5">
+        <p className="min-w-0 flex-1 truncate text-sm text-[var(--ink)]">
+          Delete "{habit.name}"?
+        </p>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="shrink-0 px-2 py-1 text-xs text-[var(--ink-muted)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => remove.mutate(habit.id)}
+          className="shrink-0 rounded-full bg-[var(--danger)] px-3 py-1.5 text-xs font-medium text-[var(--accent-ink)]"
+        >
+          Delete
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center justify-between py-2.5">
+      <p className="min-w-0 flex-1 truncate text-sm text-[var(--ink)]">{habit.name}</p>
+      <button
+        type="button"
+        aria-label={`Delete ${habit.name}`}
+        onClick={() => setConfirming(true)}
+        className="shrink-0 p-1.5 text-[var(--ink-muted)] hover:text-[var(--danger)]"
+      >
+        <TrashIcon className="h-4 w-4" />
+      </button>
+    </li>
   );
 }

@@ -41,6 +41,17 @@ export function useSetHabitArchived() {
   });
 }
 
+export function useDeleteHabit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => habitsRepo.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: HABITS_KEY });
+      qc.invalidateQueries({ queryKey: LOGS_KEY });
+    },
+  });
+}
+
 export function useToggleHabitToday() {
   const qc = useQueryClient();
   return useMutation({

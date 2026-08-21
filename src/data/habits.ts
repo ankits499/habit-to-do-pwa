@@ -21,6 +21,14 @@ export const habitsRepo = {
   async setArchived(id: string, archived: boolean): Promise<Habit> {
     return habitsStore.update(id, { archived });
   },
+  async remove(id: string): Promise<void> {
+    await habitsStore.remove(id);
+    const logs = read<HabitLog[]>(LOGS_KEY, []);
+    write(
+      LOGS_KEY,
+      logs.filter((l) => l.habit_id !== id),
+    );
+  },
 };
 
 export const habitLogsRepo = {
