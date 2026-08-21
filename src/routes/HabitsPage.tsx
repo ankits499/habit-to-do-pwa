@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { DotStrip } from "../components/DotStrip";
@@ -195,6 +195,7 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"daily" | "weekdays">("daily");
   const [days, setDays] = useState<Weekday[]>(ALL_WEEKDAYS);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function toggleDay(d: Weekday) {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
@@ -208,7 +209,7 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <BottomSheet onClose={onDone}>
+    <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
         <div className="flex flex-col gap-4">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
@@ -216,6 +217,7 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
           </h2>
 
           <input
+            ref={inputRef}
             placeholder="Habit name"
             value={name}
             onChange={(e) => setName(e.target.value)}

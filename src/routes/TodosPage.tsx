@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
@@ -199,6 +199,7 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
   const add = useAddTodo();
   const [text, setText] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const today = todayISO();
   const tomorrow = addDays(today, 1);
@@ -215,7 +216,7 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <BottomSheet onClose={onDone}>
+    <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
         <div className="flex flex-col gap-4">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
@@ -223,6 +224,7 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
           </h2>
 
           <input
+            ref={inputRef}
             placeholder="What needs doing?"
             value={text}
             onChange={(e) => setText(e.target.value)}
