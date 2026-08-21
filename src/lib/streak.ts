@@ -45,3 +45,36 @@ export function currentStreak(habit: Habit, logs: HabitLog[]): number {
   }
   return streak;
 }
+
+/** Longest-ever run of consecutive scheduled days completed. */
+export function bestStreak(habit: Habit, logs: HabitLog[]): number {
+  const habitLogs = logs.filter((l) => l.habit_id === habit.id);
+  if (habitLogs.length === 0) return 0;
+  const doneDates = new Set(habitLogs.map((l) => l.log_date));
+  const earliest = habitLogs.reduce((min, l) => (l.log_date < min ? l.log_date : min), habitLogs[0].log_date);
+  const today = todayISO();
+
+  let best = 0;
+  let running = 0;
+  let cursor = earliest;
+  while (cursor <= today) {
+    if (isScheduledOn(habit.frequency, cursor)) {
+      if (doneDates.has(cursor)) {
+        running += 1;
+        best = Math.max(best, running);
+      } else {
+        running = 0;
+      }
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return best;
+}
+
+/** Fraction of scheduled days completed in the last `days` days (0 when none scheduled). */
+export function completionRate(habit: Habit, logs: HabitLog[], days: number): number {
+  const cells = buildStrip(habit, logs, days);
+  const scheduled = cells.filter((c) => c.scheduled);
+  if (scheduled.length === 0) return 0;
+  return scheduled.filter((c) => c.done).length / scheduled.length;
+}

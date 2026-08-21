@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { DotStrip } from "../components/DotStrip";
+import { HabitCalendar } from "../components/HabitCalendar";
 import { GrowthTree } from "../components/GrowthTree";
 import { CheckIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
@@ -13,10 +14,12 @@ import {
   useToggleHabitToday,
 } from "../features/habits/hooks";
 import { useReminderSettings, useUpdateReminderSettings } from "../features/reminders/hooks";
-import type { Habit, Weekday } from "../data/types";
+import type { Habit, HabitLog, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
-import { buildStrip, currentStreak } from "../lib/streak";
+import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
 import { growthStage, STAGE_LABEL } from "../lib/growth";
+
+const STATS_DAYS = 30;
 
 const STRIP_DAYS = 7;
 const ALL_WEEKDAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
@@ -26,10 +29,21 @@ export function HabitsPage() {
   const { data: logs = [] } = useHabitLogs();
   const [composing, setComposing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
 
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const { stage, avgStreak } = useMemo(() => growthStage(habits, logs), [habits, logs]);
+
+  const overview = useMemo(() => {
+    const today = todayISO();
+    const scheduledToday = active.filter((h) => isScheduledOn(h.frequency, today));
+    const doneToday = scheduledToday.filter((h) =>
+      logs.some((l) => l.habit_id === h.id && l.log_date === today),
+    );
+    const bestCurrent = active.reduce((max, h) => Math.max(max, currentStreak(h, logs)), 0);
+    return { scheduledToday: scheduledToday.length, doneToday: doneToday.length, bestCurrent };
+  }, [active, logs]);
 
   return (
     <div className="flex h-full flex-col">
@@ -71,6 +85,29 @@ export function HabitsPage() {
             </div>
           )}
 
+          {!isLoading && active.length > 0 && (
+            <div className="mt-3 flex items-center justify-around rounded-lg border border-[var(--line)] px-4 py-2.5 text-center">
+              <div>
+                <p className="font-[family-name:var(--font-display)] text-base text-[var(--ink)]">
+                  {overview.doneToday}/{overview.scheduledToday}
+                </p>
+                <p className="text-[11px] text-[var(--ink-muted)]">today</p>
+              </div>
+              <div>
+                <p className="font-[family-name:var(--font-display)] text-base text-[var(--ink)]">
+                  {overview.bestCurrent}
+                </p>
+                <p className="text-[11px] text-[var(--ink-muted)]">best streak</p>
+              </div>
+              <div>
+                <p className="font-[family-name:var(--font-display)] text-base text-[var(--ink)]">
+                  {active.length}
+                </p>
+                <p className="text-[11px] text-[var(--ink-muted)]">active habits</p>
+              </div>
+            </div>
+          )}
+
           {composing && <ComposeHabit onDone={() => setComposing(false)} />}
 
           {!isLoading && habits.length === 0 && !composing && (
@@ -94,7 +131,7 @@ export function HabitsPage() {
           {active.length > 0 && (
             <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
               {active.map((habit) => (
-                <HabitRow key={habit.id} habit={habit} logs={logs} />
+                <HabitRow key={habit.id} habit={habit} logs={logs} onOpenStats={() => setStatsHabit(habit)} />
               ))}
             </ul>
           )}
@@ -117,11 +154,23 @@ export function HabitsPage() {
       {settingsOpen && (
         <ReminderSettingsSheet habits={habits} onClose={() => setSettingsOpen(false)} />
       )}
+
+      {statsHabit && (
+        <HabitStatsSheet habit={statsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
+      )}
     </div>
   );
 }
 
-function HabitRow({ habit, logs }: { habit: Habit; logs: { habit_id: string; log_date: string }[] }) {
+function HabitRow({
+  habit,
+  logs,
+  onOpenStats,
+}: {
+  habit: Habit;
+  logs: { habit_id: string; log_date: string }[];
+  onOpenStats: () => void;
+}) {
   const toggle = useToggleHabitToday();
   const setArchived = useSetHabitArchived();
   const today = todayISO();
@@ -148,7 +197,7 @@ function HabitRow({ habit, logs }: { habit: Habit; logs: { habit_id: string; log
         <CheckIcon className="h-4 w-4" />
       </button>
 
-      <div className="min-w-0 flex-1">
+      <button type="button" onClick={onOpenStats} className="min-w-0 flex-1 text-left">
         <div className="flex items-baseline gap-2">
           <p className="truncate text-[15px] text-[var(--ink)]">{habit.name}</p>
           {streak > 0 && (
@@ -160,7 +209,7 @@ function HabitRow({ habit, logs }: { habit: Habit; logs: { habit_id: string; log
         <div className="mt-1.5">
           <DotStrip cells={strip} showLabels />
         </div>
-      </div>
+      </button>
 
       <button
         type="button"
@@ -171,6 +220,51 @@ function HabitRow({ habit, logs }: { habit: Habit; logs: { habit_id: string; log
         Archive
       </button>
     </li>
+  );
+}
+
+function HabitStatsSheet({
+  habit,
+  logs,
+  onClose,
+}: {
+  habit: Habit;
+  logs: HabitLog[];
+  onClose: () => void;
+}) {
+  const streak = currentStreak(habit, logs);
+  const best = bestStreak(habit, logs);
+  const rate = completionRate(habit, logs, STATS_DAYS);
+  const total = logs.filter((l) => l.habit_id === habit.id).length;
+
+  return (
+    <BottomSheet onClose={onClose}>
+      {() => (
+        <div className="flex flex-col gap-5">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+            {habit.name}
+          </h2>
+
+          <div className="grid grid-cols-2 gap-3">
+            <StatTile label="Current streak" value={`${streak} day${streak === 1 ? "" : "s"}`} />
+            <StatTile label="Best streak" value={`${best} day${best === 1 ? "" : "s"}`} />
+            <StatTile label={`Last ${STATS_DAYS} days`} value={`${Math.round(rate * 100)}%`} />
+            <StatTile label="Total completions" value={String(total)} />
+          </div>
+
+          <HabitCalendar habit={habit} logs={logs} />
+        </div>
+      )}
+    </BottomSheet>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--line)] px-3 py-2.5">
+      <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">{value}</p>
+      <p className="text-[11px] text-[var(--ink-muted)]">{label}</p>
+    </div>
   );
 }
 
