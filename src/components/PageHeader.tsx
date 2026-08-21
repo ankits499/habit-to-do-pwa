@@ -3,7 +3,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--line)] bg-[var(--paper)]/95 px-5 py-4 backdrop-blur">
+    <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--paper)] px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <h1 className="font-[family-name:var(--font-display)] text-2xl font-medium tracking-tight text-[var(--ink)]">
         {title}
       </h1>

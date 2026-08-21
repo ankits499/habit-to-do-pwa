@@ -45,6 +45,11 @@ html,
 body,
 #root {
   height: 100%;
+  overscroll-behavior: none;
+}
+
+html {
+  touch-action: manipulation;
 }
 
 body {
@@ -55,6 +60,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light dark;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+}
+
+input,
+textarea {
+  font-size: 16px;
 }
 
 button {

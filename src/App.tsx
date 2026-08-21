@@ -11,13 +11,13 @@ const queryClient = new QueryClient();
 function AppShell() {
   useReminderCheck();
   return (
-    <div className="mx-auto flex min-h-full max-w-[480px] flex-col">
-      <main className="flex-1">
+    <div className="mx-auto flex h-full max-w-[480px] flex-col">
+      <div className="min-h-0 flex-1">
         <Routes>
           <Route path="/" element={<TodosPage />} />
           <Route path="/habits" element={<HabitsPage />} />
         </Routes>
-      </main>
+      </div>
       <BottomNav />
     </div>
   );

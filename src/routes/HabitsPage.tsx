@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { BottomSheet } from "../components/BottomSheet";
 import { DotStrip } from "../components/DotStrip";
 import { GrowthTree } from "../components/GrowthTree";
 import { CheckIcon, GearIcon, PlusIcon, XIcon } from "../components/icons";
@@ -30,7 +31,7 @@ export function HabitsPage() {
   const { stage, avgStreak } = useMemo(() => growthStage(habits, logs), [habits, logs]);
 
   return (
-    <div className="pb-24">
+    <div className="flex h-full flex-col">
       <PageHeader
         title="Habits"
         action={
@@ -55,59 +56,61 @@ export function HabitsPage() {
         }
       />
 
-      <div className="mx-auto max-w-[480px] px-5">
-        {!isLoading && habits.length > 0 && (
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
-            <GrowthTree stage={stage} />
-            <p className="text-sm text-[var(--ink-muted)]">
-              <span className="font-[family-name:var(--font-display)] text-[var(--ink)]">
-                {STAGE_LABEL[stage]}
-              </span>{" "}
-              · avg {Math.round(avgStreak)}-day streak
-            </p>
-          </div>
-        )}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto max-w-[480px] px-5 pb-8">
+          {!isLoading && habits.length > 0 && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
+              <GrowthTree stage={stage} />
+              <p className="text-sm text-[var(--ink-muted)]">
+                <span className="font-[family-name:var(--font-display)] text-[var(--ink)]">
+                  {STAGE_LABEL[stage]}
+                </span>{" "}
+                · avg {Math.round(avgStreak)}-day streak
+              </p>
+            </div>
+          )}
 
-        {composing && <ComposeHabit onDone={() => setComposing(false)} />}
+          {composing && <ComposeHabit onDone={() => setComposing(false)} />}
 
-        {!isLoading && habits.length === 0 && !composing && (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
-              No habits yet
-            </p>
-            <p className="max-w-[30ch] text-sm text-[var(--ink-muted)]">
-              Define one to start building a streak.
-            </p>
-            <button
-              type="button"
-              onClick={() => setComposing(true)}
-              className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
-            >
-              Add a habit
-            </button>
-          </div>
-        )}
+          {!isLoading && habits.length === 0 && !composing && (
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
+                No habits yet
+              </p>
+              <p className="max-w-[30ch] text-sm text-[var(--ink-muted)]">
+                Define one to start building a streak.
+              </p>
+              <button
+                type="button"
+                onClick={() => setComposing(true)}
+                className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
+              >
+                Add a habit
+              </button>
+            </div>
+          )}
 
-        {active.length > 0 && (
-          <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
-            {active.map((habit) => (
-              <HabitRow key={habit.id} habit={habit} logs={logs} />
-            ))}
-          </ul>
-        )}
-
-        {archived.length > 0 && (
-          <section className="mt-8">
-            <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-              Archived
-            </h2>
-            <ul className="flex flex-col divide-y divide-[var(--line)]">
-              {archived.map((habit) => (
-                <ArchivedHabitRow key={habit.id} habit={habit} />
+          {active.length > 0 && (
+            <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
+              {active.map((habit) => (
+                <HabitRow key={habit.id} habit={habit} logs={logs} />
               ))}
             </ul>
-          </section>
-        )}
+          )}
+
+          {archived.length > 0 && (
+            <section className="mt-8">
+              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                Archived
+              </h2>
+              <ul className="flex flex-col divide-y divide-[var(--line)]">
+                {archived.map((habit) => (
+                  <ArchivedHabitRow key={habit.id} habit={habit} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       </div>
 
       {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
@@ -194,69 +197,77 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
   }
 
-  function submit() {
+  function submit(close: () => void) {
     const trimmed = name.trim();
-    if (!trimmed) return onDone();
+    if (!trimmed) return close();
     add.mutate({ name: trimmed, frequency: mode === "daily" ? "daily" : days });
-    onDone();
+    close();
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-[var(--line)] p-3">
-      <input
-        autoFocus
-        placeholder="Habit name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
-      />
+    <BottomSheet onClose={onDone}>
+      {(close) => (
+        <div className="flex flex-col gap-4">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+            New Habit
+          </h2>
 
-      <div className="flex gap-2 text-sm">
-        <ModeButton active={mode === "daily"} onClick={() => setMode("daily")}>
-          Daily
-        </ModeButton>
-        <ModeButton active={mode === "weekdays"} onClick={() => setMode("weekdays")}>
-          Specific days
-        </ModeButton>
-      </div>
+          <input
+            autoFocus
+            placeholder="Habit name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit(close)}
+            className="w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2.5 text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          />
 
-      {mode === "weekdays" && (
-        <div className="flex flex-wrap gap-1.5">
-          {ALL_WEEKDAYS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => toggleDay(d)}
-              className={`h-8 w-8 rounded-full text-xs font-medium transition-colors ${
-                days.includes(d)
-                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
-                  : "border border-[var(--line)] text-[var(--ink-muted)]"
-              }`}
-            >
-              {weekdayLabel(d)[0]}
+          <div className="flex items-center gap-2">
+            <DateChip active={mode === "daily"} onClick={() => setMode("daily")}>
+              Daily
+            </DateChip>
+            <DateChip active={mode === "weekdays"} onClick={() => setMode("weekdays")}>
+              Specific days
+            </DateChip>
+          </div>
+
+          {mode === "weekdays" && (
+            <div className="flex flex-wrap gap-1.5">
+              {ALL_WEEKDAYS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDay(d)}
+                  className={`h-9 w-9 rounded-full text-xs font-medium transition-colors ${
+                    days.includes(d)
+                      ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                      : "border border-[var(--line)] text-[var(--ink-muted)]"
+                  }`}
+                >
+                  {weekdayLabel(d)[0]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={close} className="p-1.5 text-[var(--ink-muted)]">
+              <XIcon className="h-4 w-4" />
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => submit(close)}
+              className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-medium text-[var(--accent-ink)]"
+            >
+              Add
+            </button>
+          </div>
         </div>
       )}
-
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="p-1.5 text-[var(--ink-muted)]">
-          <XIcon className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-ink)]"
-        >
-          Add
-        </button>
-      </div>
-    </div>
+    </BottomSheet>
   );
 }
 
-function ModeButton({
+function DateChip({
   active,
   onClick,
   children,
@@ -269,7 +280,7 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+      className={`flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition-colors ${
         active
           ? "bg-[var(--accent)] text-[var(--accent-ink)]"
           : "border border-[var(--line)] text-[var(--ink-muted)]"
@@ -286,65 +297,64 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
   const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
   const [enabled, setEnabled] = useState(settings?.enabled ?? true);
 
-  function save() {
+  function save(close: () => void) {
     update.mutate({
       reminder_time: time,
       enabled,
       timezone: settings?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
-    onClose();
+    close();
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="w-full max-w-[480px] rounded-t-2xl border-t border-[var(--line)] bg-[var(--paper)] p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-          Daily reminder
-        </h2>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          A notification if you haven't logged today's habits by this time.
-        </p>
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+            Daily reminder
+          </h2>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            A notification if you haven't logged today's habits by this time.
+          </p>
 
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-sm text-[var(--ink)]">Enabled</span>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm text-[var(--ink)]">Enabled</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={() => setEnabled((v) => !v)}
+              className={`h-6 w-11 rounded-full p-0.5 transition-colors ${
+                enabled ? "bg-[var(--accent)]" : "bg-[var(--line)]"
+              }`}
+            >
+              <span
+                className={`block h-5 w-5 rounded-full bg-[var(--paper)] transition-transform ${
+                  enabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm text-[var(--ink)]">Time</span>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm text-[var(--ink)]"
+            />
+          </div>
+
           <button
             type="button"
-            role="switch"
-            aria-checked={enabled}
-            onClick={() => setEnabled((v) => !v)}
-            className={`h-6 w-11 rounded-full p-0.5 transition-colors ${
-              enabled ? "bg-[var(--accent)]" : "bg-[var(--line)]"
-            }`}
+            onClick={() => save(close)}
+            className="mt-5 w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
           >
-            <span
-              className={`block h-5 w-5 rounded-full bg-[var(--paper)] transition-transform ${
-                enabled ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
+            Save
           </button>
         </div>
-
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-sm text-[var(--ink)]">Time</span>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm text-[var(--ink)]"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={save}
-          className="mt-5 w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
-        >
-          Save
-        </button>
-      </div>
-    </div>
+      )}
+    </BottomSheet>
   );
 }
