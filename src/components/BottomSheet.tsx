@@ -62,17 +62,27 @@ export function BottomSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
         style={{
           transform: `translateY(${translateY})`,
           transition: isDragging ? "none" : "transform 200ms ease-out",
         }}
-        className="w-full max-w-[480px] rounded-t-2xl border-t border-[var(--line)] bg-[var(--paper)] pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-2"
+        className="flex max-h-[85vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-2xl border-t border-[var(--line)] bg-[var(--paper)]"
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-[var(--line)]" />
-        <div className="px-5">{children(close)}</div>
+        {/* Only the handle bar is a drag target, so dragging inside the
+         * scrollable content below (where a focused input needs to be
+         * scrolled into view above the iOS keyboard) never gets hijacked
+         * as a dismiss gesture. */}
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          className="shrink-0 pb-3 pt-2"
+        >
+          <div className="mx-auto h-1.5 w-10 rounded-full bg-[var(--line)]" />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
+          {children(close)}
+        </div>
       </div>
     </div>
   );
