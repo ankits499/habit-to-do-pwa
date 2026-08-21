@@ -1,0 +1,350 @@
+import { useMemo, useState } from "react";
+import { PageHeader } from "../components/PageHeader";
+import { DotStrip } from "../components/DotStrip";
+import { GrowthTree } from "../components/GrowthTree";
+import { CheckIcon, GearIcon, PlusIcon, XIcon } from "../components/icons";
+import {
+  useAddHabit,
+  useHabitLogs,
+  useHabits,
+  useSetHabitArchived,
+  useToggleHabitToday,
+} from "../features/habits/hooks";
+import { useReminderSettings, useUpdateReminderSettings } from "../features/reminders/hooks";
+import type { Habit, Weekday } from "../data/types";
+import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
+import { buildStrip, currentStreak } from "../lib/streak";
+import { growthStage, STAGE_LABEL } from "../lib/growth";
+
+const STRIP_DAYS = 7;
+const ALL_WEEKDAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
+
+export function HabitsPage() {
+  const { data: habits = [], isLoading } = useHabits();
+  const { data: logs = [] } = useHabitLogs();
+  const [composing, setComposing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
+  const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
+  const { stage, avgStreak } = useMemo(() => growthStage(habits, logs), [habits, logs]);
+
+  return (
+    <div className="pb-24">
+      <PageHeader
+        title="Habits"
+        action={
+          <>
+            <button
+              type="button"
+              aria-label="Reminder settings"
+              onClick={() => setSettingsOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+            >
+              <GearIcon className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Add habit"
+              onClick={() => setComposing(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+          </>
+        }
+      />
+
+      <div className="mx-auto max-w-[480px] px-5">
+        {!isLoading && habits.length > 0 && (
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
+            <GrowthTree stage={stage} />
+            <p className="text-sm text-[var(--ink-muted)]">
+              <span className="font-[family-name:var(--font-display)] text-[var(--ink)]">
+                {STAGE_LABEL[stage]}
+              </span>{" "}
+              · avg {Math.round(avgStreak)}-day streak
+            </p>
+          </div>
+        )}
+
+        {composing && <ComposeHabit onDone={() => setComposing(false)} />}
+
+        {!isLoading && habits.length === 0 && !composing && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
+              No habits yet
+            </p>
+            <p className="max-w-[30ch] text-sm text-[var(--ink-muted)]">
+              Define one to start building a streak.
+            </p>
+            <button
+              type="button"
+              onClick={() => setComposing(true)}
+              className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
+            >
+              Add a habit
+            </button>
+          </div>
+        )}
+
+        {active.length > 0 && (
+          <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
+            {active.map((habit) => (
+              <HabitRow key={habit.id} habit={habit} logs={logs} />
+            ))}
+          </ul>
+        )}
+
+        {archived.length > 0 && (
+          <section className="mt-8">
+            <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              Archived
+            </h2>
+            <ul className="flex flex-col divide-y divide-[var(--line)]">
+              {archived.map((habit) => (
+                <ArchivedHabitRow key={habit.id} habit={habit} />
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+
+      {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
+    </div>
+  );
+}
+
+function HabitRow({ habit, logs }: { habit: Habit; logs: { habit_id: string; log_date: string }[] }) {
+  const toggle = useToggleHabitToday();
+  const setArchived = useSetHabitArchived();
+  const today = todayISO();
+  const scheduledToday = isScheduledOn(habit.frequency, today);
+  const doneToday = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
+  const strip = buildStrip(habit, logs, STRIP_DAYS);
+  const streak = currentStreak(habit, logs);
+
+  return (
+    <li className="group flex items-center gap-3 py-3.5">
+      <button
+        type="button"
+        disabled={!scheduledToday}
+        aria-label={doneToday ? "Mark not done for today" : "Mark done for today"}
+        onClick={() => toggle.mutate({ habitId: habit.id, done: !doneToday })}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all ${
+          doneToday
+            ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] scale-100"
+            : scheduledToday
+              ? "border-[var(--line)] text-transparent hover:border-[var(--accent)]"
+              : "border-[var(--line)] text-transparent opacity-40"
+        }`}
+      >
+        <CheckIcon className="h-4 w-4" />
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <p className="truncate text-[15px] text-[var(--ink)]">{habit.name}</p>
+          {streak > 0 && (
+            <span className="shrink-0 font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
+              {streak} day{streak === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        <div className="mt-1.5">
+          <DotStrip cells={strip} showLabels />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        aria-label="Archive habit"
+        onClick={() => setArchived.mutate({ id: habit.id, archived: true })}
+        className="shrink-0 self-start text-xs text-[var(--ink-muted)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-[var(--ink)]"
+      >
+        Archive
+      </button>
+    </li>
+  );
+}
+
+function ArchivedHabitRow({ habit }: { habit: Habit }) {
+  const setArchived = useSetHabitArchived();
+  return (
+    <li className="flex items-center justify-between py-3">
+      <p className="text-[15px] text-[var(--ink-muted)]">{habit.name}</p>
+      <button
+        type="button"
+        onClick={() => setArchived.mutate({ id: habit.id, archived: false })}
+        className="text-xs font-medium text-[var(--accent)]"
+      >
+        Restore
+      </button>
+    </li>
+  );
+}
+
+function ComposeHabit({ onDone }: { onDone: () => void }) {
+  const add = useAddHabit();
+  const [name, setName] = useState("");
+  const [mode, setMode] = useState<"daily" | "weekdays">("daily");
+  const [days, setDays] = useState<Weekday[]>(ALL_WEEKDAYS);
+
+  function toggleDay(d: Weekday) {
+    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
+  }
+
+  function submit() {
+    const trimmed = name.trim();
+    if (!trimmed) return onDone();
+    add.mutate({ name: trimmed, frequency: mode === "daily" ? "daily" : days });
+    onDone();
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-[var(--line)] p-3">
+      <input
+        autoFocus
+        placeholder="Habit name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && submit()}
+        className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+      />
+
+      <div className="flex gap-2 text-sm">
+        <ModeButton active={mode === "daily"} onClick={() => setMode("daily")}>
+          Daily
+        </ModeButton>
+        <ModeButton active={mode === "weekdays"} onClick={() => setMode("weekdays")}>
+          Specific days
+        </ModeButton>
+      </div>
+
+      {mode === "weekdays" && (
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_WEEKDAYS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => toggleDay(d)}
+              className={`h-8 w-8 rounded-full text-xs font-medium transition-colors ${
+                days.includes(d)
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "border border-[var(--line)] text-[var(--ink-muted)]"
+              }`}
+            >
+              {weekdayLabel(d)[0]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onDone} className="p-1.5 text-[var(--ink-muted)]">
+          <XIcon className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-ink)]"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+        active
+          ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+          : "border border-[var(--line)] text-[var(--ink-muted)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
+  const { data: settings } = useReminderSettings();
+  const update = useUpdateReminderSettings();
+  const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
+  const [enabled, setEnabled] = useState(settings?.enabled ?? true);
+
+  function save() {
+    update.mutate({
+      reminder_time: time,
+      enabled,
+      timezone: settings?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="w-full max-w-[480px] rounded-t-2xl border-t border-[var(--line)] bg-[var(--paper)] p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+          Daily reminder
+        </h2>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          A notification if you haven't logged today's habits by this time.
+        </p>
+
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-sm text-[var(--ink)]">Enabled</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            onClick={() => setEnabled((v) => !v)}
+            className={`h-6 w-11 rounded-full p-0.5 transition-colors ${
+              enabled ? "bg-[var(--accent)]" : "bg-[var(--line)]"
+            }`}
+          >
+            <span
+              className={`block h-5 w-5 rounded-full bg-[var(--paper)] transition-transform ${
+                enabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-sm text-[var(--ink)]">Time</span>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm text-[var(--ink)]"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={save}
+          className="mt-5 w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}

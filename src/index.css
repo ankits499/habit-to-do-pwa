@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root {
+  --paper: #faf9f6;
+  --ink: #1c1b19;
+  --ink-muted: #6b6862;
+  --line: #e4e1d8;
+  --accent: #c9622a;
+  --accent-ink: #fff8f2;
+  --danger: #b3432f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161513;
+    --ink: #f2f0ea;
+    --ink-muted: #8c897f;
+    --line: #2b2926;
+    --accent: #e08a4f;
+    --accent-ink: #1c1000;
+    --danger: #e0725a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #161513;
+  --ink: #f2f0ea;
+  --ink-muted: #8c897f;
+  --line: #2b2926;
+  --accent: #e08a4f;
+  --accent-ink: #1c1000;
+  --danger: #e0725a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light dark;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
