@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { DotStrip } from "../components/DotStrip";
@@ -8,6 +9,7 @@ import { CheckIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/i
 import {
   useAddHabit,
   useDeleteHabit,
+  useEditHabit,
   useHabitLogs,
   useHabits,
   useSetHabitArchived,
@@ -18,6 +20,7 @@ import type { Habit, HabitLog, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
 import { growthStage, STAGE_LABEL } from "../lib/growth";
+import { exportBackup, importBackup } from "../lib/backup";
 
 const STATS_DAYS = 30;
 
@@ -215,7 +218,7 @@ function HabitRow({
         type="button"
         aria-label="Archive habit"
         onClick={() => setArchived.mutate({ id: habit.id, archived: true })}
-        className="shrink-0 self-start text-xs text-[var(--ink-muted)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-[var(--ink)]"
+        className="shrink-0 self-start text-xs text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
       >
         Archive
       </button>
@@ -392,8 +395,11 @@ function DateChip({
 function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: () => void }) {
   const { data: settings } = useReminderSettings();
   const update = useUpdateReminderSettings();
+  const qc = useQueryClient();
   const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
   const [enabled, setEnabled] = useState(settings?.enabled ?? true);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function save(close: () => void) {
     update.mutate({
@@ -402,6 +408,30 @@ function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: 
       timezone: settings?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     close();
+  }
+
+  function handleExport() {
+    const json = exportBackup();
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `todo-habits-backup-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      importBackup(await file.text());
+      setImportError(null);
+      qc.invalidateQueries();
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import failed.");
+    }
   }
 
   return (
@@ -452,10 +482,44 @@ function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: 
             Save
           </button>
 
+          <div className="mt-6 border-t border-[var(--line)] pt-4">
+            <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              Backup
+            </h3>
+            <p className="mb-2 text-xs text-[var(--ink-muted)]">
+              Everything is stored on this device only — export a backup so an app update or
+              reinstall can't lose it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex-1 rounded-full border border-[var(--line)] py-2 text-sm font-medium text-[var(--ink)]"
+              >
+                Export data
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 rounded-full border border-[var(--line)] py-2 text-sm font-medium text-[var(--ink)]"
+              >
+                Import data
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+            </div>
+            {importError && <p className="mt-2 text-xs text-[var(--danger)]">{importError}</p>}
+          </div>
+
           {habits.length > 0 && (
             <div className="mt-6 border-t border-[var(--line)] pt-4">
               <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Manage habits
+                Manage habits · tap a name to rename
               </h3>
               <ul className="flex flex-col divide-y divide-[var(--line)]">
                 {habits.map((habit) => (
@@ -472,7 +536,10 @@ function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: 
 
 function DeleteHabitRow({ habit }: { habit: Habit }) {
   const remove = useDeleteHabit();
+  const edit = useEditHabit();
   const [confirming, setConfirming] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(habit.name);
 
   if (confirming) {
     return (
@@ -498,9 +565,36 @@ function DeleteHabitRow({ habit }: { habit: Habit }) {
     );
   }
 
+  if (renaming) {
+    function save() {
+      const trimmed = name.trim();
+      setRenaming(false);
+      if (!trimmed || trimmed === habit.name) return;
+      edit.mutate({ id: habit.id, patch: { name: trimmed, frequency: habit.frequency } });
+    }
+    return (
+      <li className="flex items-center gap-2 py-2.5">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          onBlur={save}
+          className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-transparent px-2 py-1 text-sm text-[var(--ink)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        />
+      </li>
+    );
+  }
+
   return (
     <li className="flex items-center justify-between py-2.5">
-      <p className="min-w-0 flex-1 truncate text-sm text-[var(--ink)]">{habit.name}</p>
+      <button
+        type="button"
+        onClick={() => setRenaming(true)}
+        className="min-w-0 flex-1 truncate text-left text-sm text-[var(--ink)]"
+      >
+        {habit.name}
+      </button>
       <button
         type="button"
         aria-label={`Delete ${habit.name}`}

@@ -142,7 +142,7 @@ function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
         type="button"
         aria-label="Delete todo"
         onClick={() => remove.mutate(todo.id)}
-        className="flex h-8 w-8 shrink-0 items-center justify-center text-[var(--ink-muted)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-[var(--danger)]"
+        className="flex h-8 w-8 shrink-0 items-center justify-center text-[var(--ink-muted)] transition-colors hover:text-[var(--danger)]"
       >
         <TrashIcon className="h-4 w-4" />
       </button>
