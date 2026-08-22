@@ -3,9 +3,9 @@ import type { GrowthStage } from "../lib/growth";
 export function GrowthTree({ stage }: { stage: GrowthStage }) {
   return (
     <svg
-      viewBox="0 0 100 260"
-      width={48}
-      height={125}
+      viewBox="-5 55 110 200"
+      width={38}
+      height={69}
       shapeRendering="crispEdges"
       role="img"
       aria-label={`growth stage ${stage}`}
