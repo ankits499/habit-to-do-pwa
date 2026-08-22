@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { BottomSheet } from "../components/BottomSheet";
+import { InlineComposer } from "../components/InlineComposer";
 import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
   useAddTodo,
@@ -15,6 +15,12 @@ import { addDays, formatDueDate, todayISO } from "../lib/dates";
 export function TodosPage() {
   const { data: todos = [], isLoading } = useTodos();
   const [composing, setComposing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  function openComposer() {
+    setComposing(true);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const groups = useMemo(() => {
     const today = todayISO();
@@ -37,7 +43,7 @@ export function TodosPage() {
           <button
             type="button"
             aria-label="Add todo"
-            onClick={() => setComposing(true)}
+            onClick={openComposer}
             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
           >
             <PlusIcon className="h-5 w-5" />
@@ -45,10 +51,16 @@ export function TodosPage() {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
-          {!isLoading && todos.length === 0 && (
-            <EmptyState onAdd={() => setComposing(true)} />
+          {composing && (
+            <div className="pt-4">
+              <ComposeTodoCard onDone={() => setComposing(false)} />
+            </div>
+          )}
+
+          {!isLoading && todos.length === 0 && !composing && (
+            <EmptyState onAdd={openComposer} />
           )}
 
           <TodoGroup label="Today" items={groups.today} />
@@ -57,8 +69,6 @@ export function TodosPage() {
           <TodoGroup label="Done" items={groups.done} muted />
         </div>
       </div>
-
-      {composing && <ComposeTodoSheet onDone={() => setComposing(false)} />}
     </div>
   );
 }
@@ -195,7 +205,7 @@ function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
   );
 }
 
-function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
+function ComposeTodoCard({ onDone }: { onDone: () => void }) {
   const add = useAddTodo();
   const [text, setText] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -216,20 +226,20 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <BottomSheet onClose={onDone} initialFocus={inputRef}>
+    <InlineComposer onClose={onDone}>
       {(close) => (
-        <div className="flex flex-col gap-4">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            New Todo
-          </h2>
-
+        <div className="flex flex-col gap-3">
           <input
             ref={inputRef}
+            autoFocus
             placeholder="What needs doing?"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit(close)}
-            className="w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2.5 text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit(close);
+              if (e.key === "Escape") close();
+            }}
+            className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
           />
 
           <div className="flex items-center gap-2 overflow-x-auto">
@@ -260,7 +270,7 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-3">
             <button type="button" onClick={close} className="p-1.5 text-[var(--ink-muted)]">
               <XIcon className="h-4 w-4" />
             </button>
@@ -274,7 +284,7 @@ function ComposeTodoSheet({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       )}
-    </BottomSheet>
+    </InlineComposer>
   );
 }
 

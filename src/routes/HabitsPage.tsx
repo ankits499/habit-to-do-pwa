@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
+import { InlineComposer } from "../components/InlineComposer";
 import { DotStrip } from "../components/DotStrip";
 import { HabitCalendar } from "../components/HabitCalendar";
 import { GrowthTree } from "../components/GrowthTree";
@@ -32,6 +33,12 @@ export function HabitsPage() {
   const [composing, setComposing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  function openComposer() {
+    setComposing(true);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
@@ -64,7 +71,7 @@ export function HabitsPage() {
             <button
               type="button"
               aria-label="Add habit"
-              onClick={() => setComposing(true)}
+              onClick={openComposer}
               className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
             >
               <PlusIcon className="h-5 w-5" />
@@ -73,7 +80,7 @@ export function HabitsPage() {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
           {!isLoading && habits.length > 0 && (
             <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
@@ -122,7 +129,7 @@ export function HabitsPage() {
               </p>
               <button
                 type="button"
-                onClick={() => setComposing(true)}
+                onClick={openComposer}
                 className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
               >
                 Add a habit
@@ -305,20 +312,20 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <BottomSheet onClose={onDone} initialFocus={inputRef}>
+    <InlineComposer onClose={onDone}>
       {(close) => (
-        <div className="flex flex-col gap-4">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            New Habit
-          </h2>
-
+        <div className="flex flex-col gap-3">
           <input
             ref={inputRef}
+            autoFocus
             placeholder="Habit name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit(close)}
-            className="w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2.5 text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit(close);
+              if (e.key === "Escape") close();
+            }}
+            className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
           />
 
           <div className="flex items-center gap-2">
@@ -349,7 +356,7 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-3">
             <button type="button" onClick={close} className="p-1.5 text-[var(--ink-muted)]">
               <XIcon className="h-4 w-4" />
             </button>
@@ -363,7 +370,7 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       )}
-    </BottomSheet>
+    </InlineComposer>
   );
 }
 
