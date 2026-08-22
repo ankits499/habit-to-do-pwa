@@ -46,6 +46,38 @@ export function currentStreak(habit: Habit, logs: HabitLog[]): number {
   return streak;
 }
 
+/** Growth momentum for the tree's stage: like a streak, but forgiving.
+ * A missed scheduled day right after a completion is a free grace day (no
+ * penalty); only a second consecutive miss starts decaying momentum (×0.6)
+ * instead of resetting it to 0. Use `currentStreak` for literal streak
+ * stats/labels — this is only for picking the tree's stage. */
+export function growthMomentum(habit: Habit, logs: HabitLog[]): number {
+  const habitLogs = logs.filter((l) => l.habit_id === habit.id);
+  if (habitLogs.length === 0) return 0;
+  const doneDates = new Set(habitLogs.map((l) => l.log_date));
+  const earliest = habitLogs.reduce((min, l) => (l.log_date < min ? l.log_date : min), habitLogs[0].log_date);
+  const today = todayISO();
+
+  let momentum = 0;
+  let graceAvailable = true;
+  let cursor = earliest;
+  while (cursor <= today) {
+    if (isScheduledOn(habit.frequency, cursor)) {
+      if (cursor === today && !doneDates.has(cursor)) break;
+      if (doneDates.has(cursor)) {
+        momentum += 1;
+        graceAvailable = true;
+      } else if (graceAvailable) {
+        graceAvailable = false;
+      } else {
+        momentum = Math.floor(momentum * 0.6);
+      }
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return momentum;
+}
+
 /** Longest-ever run of consecutive scheduled days completed. */
 export function bestStreak(habit: Habit, logs: HabitLog[]): number {
   const habitLogs = logs.filter((l) => l.habit_id === habit.id);

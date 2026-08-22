@@ -1,5 +1,5 @@
 import type { Habit, HabitLog } from "../data/types";
-import { currentStreak } from "./streak";
+import { currentStreak, growthMomentum } from "./streak";
 
 export type GrowthStage = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -19,7 +19,9 @@ export function growthStage(habits: Habit[], logs: HabitLog[]): { stage: GrowthS
   const total = active.reduce((sum, h) => sum + currentStreak(h, logs), 0);
   const avgStreak = total / active.length;
 
-  return { stage: stageForStreak(avgStreak), avgStreak };
+  const avgMomentum = active.reduce((sum, h) => sum + growthMomentum(h, logs), 0) / active.length;
+
+  return { stage: stageForStreak(avgMomentum), avgStreak };
 }
 
 export const STAGE_LABEL: Record<GrowthStage, string> = {

@@ -20,7 +20,7 @@ import { useReminderSettings, useUpdateReminderSettings } from "../features/remi
 import { useAuth } from "../auth/AuthProvider";
 import type { Habit, HabitLog, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
-import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
+import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
 import { subscribeToPush } from "../lib/useReminderCheck";
 
@@ -450,7 +450,7 @@ function HabitTreeCard({
       }}
       className="flex flex-col items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-4 text-center transition-colors hover:border-[var(--ink-muted)]"
     >
-      <GrowthTree stage={stageForStreak(streak)} scale={1.1} />
+      <GrowthTree stage={stageForStreak(growthMomentum(habit, logs))} scale={1.1} />
       <div className="-mt-2 h-1.5 w-8 rounded-full bg-[var(--ink)] opacity-[0.08]" />
       <p className="w-full truncate text-sm text-[var(--ink)]">{habit.name}</p>
       <p className="font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
