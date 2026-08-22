@@ -86,12 +86,12 @@ export function HabitsPage() {
             <div className="mt-4 flex items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5">
               <GrowthTree stage={stage} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base text-[var(--ink)]">
+                <p className="truncate text-sm text-[var(--ink)]">
                   <span className="font-[family-name:var(--font-display)]">{STAGE_LABEL[stage]}</span>
                   <span className="text-[var(--ink-muted)]"> · {Math.round(avgStreak)}d avg</span>
                 </p>
                 {active.length > 0 && (
-                  <p className="mt-1 truncate text-sm text-[var(--ink-muted)]">
+                  <p className="mt-1 truncate text-xs text-[var(--ink-muted)]">
                     {overview.doneToday}/{overview.scheduledToday} today · {overview.bestCurrent}d best ·{" "}
                     {active.length} active
                   </p>

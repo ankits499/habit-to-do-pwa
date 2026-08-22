@@ -13,6 +13,22 @@ async function beginOptimistic<T>(qc: ReturnType<typeof useQueryClient>, key: un
   return qc.getQueryData<T>(key);
 }
 
+/** Invalidates `queryKey` only once every mutation sharing `mutationKey` has
+ * settled. Without this, firing several optimistic mutations against the
+ * same list back to back (e.g. checking off multiple habits quickly) lets
+ * an earlier one's background refetch land mid-flight and momentarily
+ * overwrite a sibling's still-pending optimistic update — a visible
+ * flicker back to the old state before snapping to the right one. */
+function settleOnce(
+  qc: ReturnType<typeof useQueryClient>,
+  mutationKey: unknown[],
+  queryKey: unknown[],
+) {
+  if (qc.isMutating({ mutationKey }) === 1) {
+    qc.invalidateQueries({ queryKey });
+  }
+}
+
 export function useHabits() {
   return useQuery({ queryKey: HABITS_KEY, queryFn: habitsRepo.list });
 }
@@ -21,9 +37,16 @@ export function useHabitLogs() {
   return useQuery({ queryKey: LOGS_KEY, queryFn: habitLogsRepo.listAll });
 }
 
+const ADD_HABIT_KEY = ["addHabit"];
+const EDIT_HABIT_KEY = ["editHabit"];
+const SET_ARCHIVED_KEY = ["setHabitArchived"];
+const DELETE_HABIT_KEY = ["deleteHabit"];
+const TOGGLE_TODAY_KEY = ["toggleHabitToday"];
+
 export function useAddHabit() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ADD_HABIT_KEY,
     mutationFn: ({ name, frequency }: { name: string; frequency: "daily" | Weekday[] }) =>
       habitsRepo.add(name, frequency),
     onMutate: async ({ name, frequency }) => {
@@ -39,13 +62,14 @@ export function useAddHabit() {
       return { previous };
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(HABITS_KEY, ctx.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: HABITS_KEY }),
+    onSettled: () => settleOnce(qc, ADD_HABIT_KEY, HABITS_KEY),
   });
 }
 
 export function useEditHabit() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: EDIT_HABIT_KEY,
     mutationFn: ({ id, patch }: { id: string; patch: Pick<Habit, "name" | "frequency"> }) =>
       habitsRepo.edit(id, patch),
     onMutate: async ({ id, patch }) => {
@@ -56,13 +80,14 @@ export function useEditHabit() {
       return { previous };
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(HABITS_KEY, ctx.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: HABITS_KEY }),
+    onSettled: () => settleOnce(qc, EDIT_HABIT_KEY, HABITS_KEY),
   });
 }
 
 export function useSetHabitArchived() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: SET_ARCHIVED_KEY,
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
       habitsRepo.setArchived(id, archived),
     onMutate: async ({ id, archived }) => {
@@ -73,13 +98,14 @@ export function useSetHabitArchived() {
       return { previous };
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(HABITS_KEY, ctx.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: HABITS_KEY }),
+    onSettled: () => settleOnce(qc, SET_ARCHIVED_KEY, HABITS_KEY),
   });
 }
 
 export function useDeleteHabit() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: DELETE_HABIT_KEY,
     mutationFn: (id: string) => habitsRepo.remove(id),
     onMutate: async (id) => {
       const previous = await beginOptimistic<Habit[]>(qc, HABITS_KEY);
@@ -88,8 +114,8 @@ export function useDeleteHabit() {
     },
     onError: (_err, _id, ctx) => ctx?.previous && qc.setQueryData(HABITS_KEY, ctx.previous),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: HABITS_KEY });
-      qc.invalidateQueries({ queryKey: LOGS_KEY });
+      settleOnce(qc, DELETE_HABIT_KEY, HABITS_KEY);
+      settleOnce(qc, DELETE_HABIT_KEY, LOGS_KEY);
     },
   });
 }
@@ -97,6 +123,7 @@ export function useDeleteHabit() {
 export function useToggleHabitToday() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: TOGGLE_TODAY_KEY,
     mutationFn: ({ habitId, done }: { habitId: string; done: boolean }) =>
       habitLogsRepo.setDone(habitId, todayISO(), done),
     onMutate: async ({ habitId, done }) => {
@@ -110,6 +137,6 @@ export function useToggleHabitToday() {
       return { previous };
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(LOGS_KEY, ctx.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: LOGS_KEY }),
+    onSettled: () => settleOnce(qc, TOGGLE_TODAY_KEY, LOGS_KEY),
   });
 }
