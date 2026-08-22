@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { QuoteStrip } from "../components/QuoteStrip";
 import { InlineComposer } from "../components/InlineComposer";
 import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
@@ -50,6 +51,8 @@ export function TodosPage() {
           </button>
         }
       />
+
+      <QuoteStrip seed="todos" />
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { QuoteStrip } from "../components/QuoteStrip";
 import { BottomSheet } from "../components/BottomSheet";
 import { InlineComposer } from "../components/InlineComposer";
 import { DotStrip } from "../components/DotStrip";
@@ -81,6 +82,8 @@ export function HabitsPage() {
           </>
         }
       />
+
+      <QuoteStrip seed="habits" />
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
@@ -402,12 +405,14 @@ function AllHabitsSheet({
             <p className="py-16 text-center text-sm text-[var(--ink-muted)]">No habits yet.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {rows.map((habit) => (
+              {rows.map((habit, i) => (
                 <HabitTreeCard
                   key={habit.id}
                   habit={habit}
                   logs={logs}
                   onOpen={() => onOpenHabit(habit)}
+                  mounted={mounted}
+                  delayMs={i * 30}
                 />
               ))}
             </div>
@@ -422,10 +427,14 @@ function HabitTreeCard({
   habit,
   logs,
   onOpen,
+  mounted,
+  delayMs,
 }: {
   habit: Habit;
   logs: HabitLog[];
   onOpen: () => void;
+  mounted: boolean;
+  delayMs: number;
 }) {
   const streak = currentStreak(habit, logs);
   const strip = buildStrip(habit, logs, STRIP_DAYS);
@@ -434,9 +443,15 @@ function HabitTreeCard({
     <button
       type="button"
       onClick={onOpen}
+      style={{
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "translateY(0)" : "translateY(4px)",
+        transition: `opacity 320ms ease-out ${delayMs}ms, transform 320ms ease-out ${delayMs}ms`,
+      }}
       className="flex flex-col items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-4 text-center transition-colors hover:border-[var(--ink-muted)]"
     >
       <GrowthTree stage={stageForStreak(streak)} scale={1.1} />
+      <div className="-mt-2 h-1.5 w-8 rounded-full bg-[var(--ink)] opacity-[0.08]" />
       <p className="w-full truncate text-sm text-[var(--ink)]">{habit.name}</p>
       <p className="font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
         {streak > 0 ? `${streak} day${streak === 1 ? "" : "s"}` : "no streak yet"}

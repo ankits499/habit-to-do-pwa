@@ -1,9 +1,23 @@
+import { useEffect, useRef, useState } from "react";
 import type { GrowthStage } from "../lib/growth";
 
 const BASE_WIDTH = 56;
 const BASE_HEIGHT = 102;
 
 export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: number }) {
+  const prevStage = useRef(stage);
+  const [justGrew, setJustGrew] = useState(false);
+
+  useEffect(() => {
+    if (stage > prevStage.current) {
+      setJustGrew(true);
+      const id = setTimeout(() => setJustGrew(false), 550);
+      prevStage.current = stage;
+      return () => clearTimeout(id);
+    }
+    prevStage.current = stage;
+  }, [stage]);
+
   return (
     <svg
       viewBox="-5 55 110 200"
@@ -12,7 +26,7 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
       shapeRendering="crispEdges"
       role="img"
       aria-label={`growth stage ${stage}`}
-      className="shrink-0 transition-opacity duration-500"
+      className={`shrink-0 tree-sway transition-opacity duration-500 ${justGrew ? "tree-grow" : ""}`}
     >
       <defs>
         {/* Stage 1: Seed in Mound */}
