@@ -1,11 +1,14 @@
 import type { GrowthStage } from "../lib/growth";
 
-export function GrowthTree({ stage }: { stage: GrowthStage }) {
+const BASE_WIDTH = 56;
+const BASE_HEIGHT = 102;
+
+export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: number }) {
   return (
     <svg
       viewBox="-5 55 110 200"
-      width={56}
-      height={102}
+      width={BASE_WIDTH * scale}
+      height={BASE_HEIGHT * scale}
       shapeRendering="crispEdges"
       role="img"
       aria-label={`growth stage ${stage}`}

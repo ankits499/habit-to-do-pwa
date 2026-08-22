@@ -33,6 +33,7 @@ export function HabitsPage() {
   const [composing, setComposing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
+  const [overviewOpen, setOverviewOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   function openComposer() {
@@ -83,7 +84,11 @@ export function HabitsPage() {
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
           {!isLoading && habits.length > 0 && (
-            <div className="mt-4 flex items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5">
+            <button
+              type="button"
+              onClick={() => setOverviewOpen(true)}
+              className="mt-4 flex w-full items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5 text-left transition-colors hover:border-[var(--ink-muted)]"
+            >
               <GrowthTree stage={stage} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-[var(--ink)]">
@@ -97,7 +102,7 @@ export function HabitsPage() {
                   </p>
                 )}
               </div>
-            </div>
+            </button>
           )}
 
           {composing && <ComposeHabit onDone={() => setComposing(false)} />}
@@ -147,6 +152,20 @@ export function HabitsPage() {
 
       {statsHabit && (
         <HabitStatsSheet habit={statsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
+      )}
+
+      {overviewOpen && (
+        <AllHabitsSheet
+          habits={active}
+          logs={logs}
+          stage={stage}
+          avgStreak={avgStreak}
+          onClose={() => setOverviewOpen(false)}
+          onOpenHabit={(habit) => {
+            setOverviewOpen(false);
+            setStatsHabit(habit);
+          }}
+        />
       )}
     </div>
   );
@@ -322,6 +341,92 @@ function StatTile({ label, value }: { label: string; value: string }) {
       <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">{value}</p>
       <p className="text-[11px] text-[var(--ink-muted)]">{label}</p>
     </div>
+  );
+}
+
+function AllHabitsSheet({
+  habits,
+  logs,
+  stage,
+  avgStreak,
+  onClose,
+  onOpenHabit,
+}: {
+  habits: Habit[];
+  logs: HabitLog[];
+  stage: ReturnType<typeof growthStage>["stage"];
+  avgStreak: number;
+  onClose: () => void;
+  onOpenHabit: (habit: Habit) => void;
+}) {
+  const today = todayISO();
+  const scheduledToday = habits.filter((h) => isScheduledOn(h.frequency, today));
+  const doneToday = scheduledToday.filter((h) =>
+    logs.some((l) => l.habit_id === h.id && l.log_date === today),
+  );
+  const bestCurrent = habits.reduce((max, h) => Math.max(max, currentStreak(h, logs)), 0);
+  const bestEver = habits.reduce((max, h) => Math.max(max, bestStreak(h, logs)), 0);
+
+  const rows = [...habits].sort((a, b) => currentStreak(b, logs) - currentStreak(a, logs));
+
+  return (
+    <BottomSheet onClose={onClose}>
+      {() => (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col items-center gap-2 pt-1 text-center">
+            <GrowthTree stage={stage} scale={1.7} />
+            <div>
+              <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
+                {STAGE_LABEL[stage]}
+              </p>
+              <p className="text-sm text-[var(--ink-muted)]">{Math.round(avgStreak)}-day avg streak</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <StatTile label="Done today" value={`${doneToday.length}/${scheduledToday.length}`} />
+            <StatTile label="Active habits" value={String(habits.length)} />
+            <StatTile label="Best current streak" value={`${bestCurrent}d`} />
+            <StatTile label="Best streak ever" value={`${bestEver}d`} />
+          </div>
+
+          {rows.length > 0 && (
+            <div className="border-t border-[var(--line)] pt-4">
+              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                All habits
+              </h3>
+              <ul className="flex flex-col divide-y divide-[var(--line)]">
+                {rows.map((habit) => {
+                  const streak = currentStreak(habit, logs);
+                  const strip = buildStrip(habit, logs, STRIP_DAYS);
+                  return (
+                    <li key={habit.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenHabit(habit)}
+                        className="flex w-full items-center gap-3 py-2.5 text-left"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <p className="truncate text-[15px] text-[var(--ink)]">{habit.name}</p>
+                            {streak > 0 && (
+                              <span className="shrink-0 font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
+                                {streak}d
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <DotStrip cells={strip} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </BottomSheet>
   );
 }
 
