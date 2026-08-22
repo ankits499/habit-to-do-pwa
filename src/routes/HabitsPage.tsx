@@ -5,7 +5,7 @@ import { InlineComposer } from "../components/InlineComposer";
 import { DotStrip } from "../components/DotStrip";
 import { HabitCalendar } from "../components/HabitCalendar";
 import { GrowthTree } from "../components/GrowthTree";
-import { CheckIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
+import { CheckIcon, ChevronRightIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
   useAddHabit,
   useDeleteHabit,
@@ -87,7 +87,7 @@ export function HabitsPage() {
             <button
               type="button"
               onClick={() => setOverviewOpen(true)}
-              className="mt-4 flex w-full items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5 text-left transition-colors hover:border-[var(--ink-muted)]"
+              className="mt-4 flex w-full items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5 text-left transition-colors hover:border-[var(--ink-muted)] active:border-[var(--ink-muted)]"
             >
               <GrowthTree stage={stage} />
               <div className="min-w-0 flex-1">
@@ -102,6 +102,7 @@ export function HabitsPage() {
                   </p>
                 )}
               </div>
+              <ChevronRightIcon className="h-5 w-5 shrink-0 text-[var(--ink-muted)]" />
             </button>
           )}
 
