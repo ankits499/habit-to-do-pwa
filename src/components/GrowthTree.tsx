@@ -4,8 +4,8 @@ export function GrowthTree({ stage }: { stage: GrowthStage }) {
   return (
     <svg
       viewBox="-5 55 110 200"
-      width={38}
-      height={69}
+      width={56}
+      height={102}
       shapeRendering="crispEdges"
       role="img"
       aria-label={`growth stage ${stage}`}
