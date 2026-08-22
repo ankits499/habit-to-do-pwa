@@ -1,4 +1,4 @@
-import { record } from "./localStore";
+import { supabase } from "../lib/supabaseClient";
 import type { ReminderSettings } from "./types";
 
 const DEFAULTS: ReminderSettings = {
@@ -7,9 +7,24 @@ const DEFAULTS: ReminderSettings = {
   enabled: true,
 };
 
-const store = record<ReminderSettings>("habit-todo:reminder_settings", DEFAULTS);
-
 export const reminderSettingsRepo = {
-  get: store.get,
-  set: store.set,
+  async get(): Promise<ReminderSettings> {
+    const { data, error } = await supabase
+      .from("reminder_settings")
+      .select("reminder_time, enabled, timezone")
+      .maybeSingle();
+    if (error) throw error;
+    return data ?? DEFAULTS;
+  },
+  async set(value: ReminderSettings): Promise<ReminderSettings> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("Not signed in");
+    const { data, error } = await supabase
+      .from("reminder_settings")
+      .upsert({ ...value, user_id: userData.user.id })
+      .select("reminder_time, enabled, timezone")
+      .single();
+    if (error) throw error;
+    return data;
+  },
 };
