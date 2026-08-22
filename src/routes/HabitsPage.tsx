@@ -21,6 +21,7 @@ import type { Habit, HabitLog, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
+import { requestNotificationPermission } from "../lib/useReminderCheck";
 
 const STATS_DAYS = 30;
 
@@ -566,8 +567,19 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
   const { signOut } = useAuth();
   const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
   const [enabled, setEnabled] = useState(settings?.enabled ?? true);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+  );
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true);
 
-  function save(close: () => void) {
+  async function save(close: () => void) {
+    if (enabled) {
+      const result = await requestNotificationPermission();
+      setPermission(result);
+    }
     update.mutate({
       reminder_time: time,
       enabled,
@@ -615,6 +627,30 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
               className="rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm text-[var(--ink)]"
             />
           </div>
+
+          {enabled && permission === "unsupported" && !isStandalone && (
+            <p className="mt-3 text-xs text-[var(--danger)]">
+              Notifications aren't available in a browser tab on this device. Add this app to your
+              Home Screen (Share &rarr; Add to Home Screen), then open it from there and enable
+              reminders again.
+            </p>
+          )}
+          {enabled && permission === "unsupported" && isStandalone && (
+            <p className="mt-3 text-xs text-[var(--danger)]">
+              This device doesn't support notifications.
+            </p>
+          )}
+          {enabled && permission === "denied" && (
+            <p className="mt-3 text-xs text-[var(--danger)]">
+              Notifications are blocked for this app. Enable them in your device's notification
+              settings to get reminders.
+            </p>
+          )}
+          {enabled && permission === "granted" && (
+            <p className="mt-3 text-xs text-[var(--ink-muted)]">
+              Reminders fire while the app is open or was recently in the background.
+            </p>
+          )}
 
           <button
             type="button"

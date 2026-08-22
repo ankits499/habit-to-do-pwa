@@ -31,17 +31,15 @@ export function useReminderCheck() {
       );
       if (pending.length === 0) return;
 
-      const notification = new Notification("Log today's habits", {
+      const registration = await navigator.serviceWorker?.ready;
+      if (!registration) return;
+      await registration.showNotification("Log today's habits", {
         body:
           pending.length === 1
             ? `"${pending[0].name}" isn't marked done yet.`
             : `${pending.length} habits aren't marked done yet.`,
         icon: "/icons/icon-192.png",
       });
-      notification.onclick = () => {
-        window.focus();
-        window.location.href = "/habits";
-      };
       localStorage.setItem(FIRED_KEY, today);
     };
 
