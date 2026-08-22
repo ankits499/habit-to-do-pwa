@@ -135,7 +135,7 @@ export function HabitsPage() {
               </h2>
               <ul className="flex flex-col divide-y divide-[var(--line)]">
                 {archived.map((habit) => (
-                  <ArchivedHabitRow key={habit.id} habit={habit} />
+                  <ArchivedHabitRow key={habit.id} habit={habit} onOpenStats={() => setStatsHabit(habit)} />
                 ))}
               </ul>
             </section>
@@ -143,9 +143,7 @@ export function HabitsPage() {
         </div>
       </div>
 
-      {settingsOpen && (
-        <ReminderSettingsSheet habits={habits} onClose={() => setSettingsOpen(false)} />
-      )}
+      {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
 
       {statsHabit && (
         <HabitStatsSheet habit={statsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
@@ -164,7 +162,6 @@ function HabitRow({
   onOpenStats: () => void;
 }) {
   const toggle = useToggleHabitToday();
-  const setArchived = useSetHabitArchived();
   const today = todayISO();
   const scheduledToday = isScheduledOn(habit.frequency, today);
   const doneToday = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
@@ -202,15 +199,6 @@ function HabitRow({
           <DotStrip cells={strip} showLabels />
         </div>
       </button>
-
-      <button
-        type="button"
-        aria-label="Archive habit"
-        onClick={() => setArchived.mutate({ id: habit.id, archived: true })}
-        className="shrink-0 self-start text-xs text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
-      >
-        Archive
-      </button>
     </li>
   );
 }
@@ -229,13 +217,44 @@ function HabitStatsSheet({
   const rate = completionRate(habit, logs, STATS_DAYS);
   const total = logs.filter((l) => l.habit_id === habit.id).length;
 
+  const edit = useEditHabit();
+  const setArchived = useSetHabitArchived();
+  const remove = useDeleteHabit();
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(habit.name);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function saveName() {
+    const trimmed = name.trim();
+    setRenaming(false);
+    if (!trimmed || trimmed === habit.name) {
+      setName(habit.name);
+      return;
+    }
+    edit.mutate({ id: habit.id, patch: { name: trimmed, frequency: habit.frequency } });
+  }
+
   return (
     <BottomSheet onClose={onClose}>
-      {() => (
+      {(close) => (
         <div className="flex flex-col gap-5">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            {habit.name}
-          </h2>
+          {renaming ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveName()}
+              onBlur={saveName}
+              className="w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 font-[family-name:var(--font-display)] text-lg text-[var(--ink)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            />
+          ) : (
+            <button type="button" onClick={() => setRenaming(true)} className="text-left">
+              <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+                {habit.name}
+              </h2>
+              <p className="text-xs text-[var(--ink-muted)]">Tap to rename</p>
+            </button>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <StatTile label="Current streak" value={`${streak} day${streak === 1 ? "" : "s"}`} />
@@ -245,6 +264,52 @@ function HabitStatsSheet({
           </div>
 
           <HabitCalendar habit={habit} logs={logs} />
+
+          {confirmingDelete ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--danger)] px-3 py-2.5">
+              <p className="min-w-0 flex-1 text-sm text-[var(--ink)]">
+                Delete "{habit.name}"? This can't be undone.
+              </p>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                className="shrink-0 px-2 py-1 text-xs text-[var(--ink-muted)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  remove.mutate(habit.id);
+                  close();
+                }}
+                className="shrink-0 rounded-full bg-[var(--danger)] px-3 py-1.5 text-xs font-medium text-[var(--accent-ink)]"
+              >
+                Delete
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 border-t border-[var(--line)] pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setArchived.mutate({ id: habit.id, archived: !habit.archived });
+                  close();
+                }}
+                className="flex-1 rounded-full border border-[var(--line)] py-2 text-sm font-medium text-[var(--ink)]"
+              >
+                {habit.archived ? "Restore" : "Archive"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--danger)] py-2 text-sm font-medium text-[var(--danger)]"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       )}
     </BottomSheet>
@@ -260,17 +325,11 @@ function StatTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ArchivedHabitRow({ habit }: { habit: Habit }) {
-  const setArchived = useSetHabitArchived();
+function ArchivedHabitRow({ habit, onOpenStats }: { habit: Habit; onOpenStats: () => void }) {
   return (
-    <li className="flex items-center justify-between py-3">
-      <p className="text-[15px] text-[var(--ink-muted)]">{habit.name}</p>
-      <button
-        type="button"
-        onClick={() => setArchived.mutate({ id: habit.id, archived: false })}
-        className="text-xs font-medium text-[var(--accent)]"
-      >
-        Restore
+    <li>
+      <button type="button" onClick={onOpenStats} className="w-full py-3 text-left">
+        <p className="truncate text-[15px] text-[var(--ink-muted)]">{habit.name}</p>
       </button>
     </li>
   );
@@ -381,7 +440,7 @@ function DateChip({
   );
 }
 
-function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: () => void }) {
+function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
   const { data: settings } = useReminderSettings();
   const update = useUpdateReminderSettings();
   const { signOut } = useAuth();
@@ -445,19 +504,6 @@ function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: 
             Save
           </button>
 
-          {habits.length > 0 && (
-            <div className="mt-6 border-t border-[var(--line)] pt-4">
-              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Manage habits · tap a name to rename
-              </h3>
-              <ul className="flex flex-col divide-y divide-[var(--line)]">
-                {habits.map((habit) => (
-                  <DeleteHabitRow key={habit.id} habit={habit} />
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div className="mt-6 border-t border-[var(--line)] pt-4">
             <button
               type="button"
@@ -470,78 +516,5 @@ function ReminderSettingsSheet({ habits, onClose }: { habits: Habit[]; onClose: 
         </div>
       )}
     </BottomSheet>
-  );
-}
-
-function DeleteHabitRow({ habit }: { habit: Habit }) {
-  const remove = useDeleteHabit();
-  const edit = useEditHabit();
-  const [confirming, setConfirming] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(habit.name);
-
-  if (confirming) {
-    return (
-      <li className="flex items-center justify-between gap-2 py-2.5">
-        <p className="min-w-0 flex-1 truncate text-sm text-[var(--ink)]">
-          Delete "{habit.name}"?
-        </p>
-        <button
-          type="button"
-          onClick={() => setConfirming(false)}
-          className="shrink-0 px-2 py-1 text-xs text-[var(--ink-muted)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => remove.mutate(habit.id)}
-          className="shrink-0 rounded-full bg-[var(--danger)] px-3 py-1.5 text-xs font-medium text-[var(--accent-ink)]"
-        >
-          Delete
-        </button>
-      </li>
-    );
-  }
-
-  if (renaming) {
-    function save() {
-      const trimmed = name.trim();
-      setRenaming(false);
-      if (!trimmed || trimmed === habit.name) return;
-      edit.mutate({ id: habit.id, patch: { name: trimmed, frequency: habit.frequency } });
-    }
-    return (
-      <li className="flex items-center gap-2 py-2.5">
-        <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && save()}
-          onBlur={save}
-          className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-transparent px-2 py-1 text-sm text-[var(--ink)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-        />
-      </li>
-    );
-  }
-
-  return (
-    <li className="flex items-center justify-between py-2.5">
-      <button
-        type="button"
-        onClick={() => setRenaming(true)}
-        className="min-w-0 flex-1 truncate text-left text-sm text-[var(--ink)]"
-      >
-        {habit.name}
-      </button>
-      <button
-        type="button"
-        aria-label={`Delete ${habit.name}`}
-        onClick={() => setConfirming(true)}
-        className="shrink-0 p-1.5 text-[var(--ink-muted)] hover:text-[var(--danger)]"
-      >
-        <TrashIcon className="h-4 w-4" />
-      </button>
-    </li>
   );
 }
