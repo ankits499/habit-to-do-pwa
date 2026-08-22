@@ -5,6 +5,13 @@ export type GrowthStage = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 const THRESHOLDS = [1, 2, 4, 7, 11, 16, 22, 30, 45] as const;
 
+export function stageForStreak(streak: number): GrowthStage {
+  for (let i = 0; i < THRESHOLDS.length; i++) {
+    if (streak < THRESHOLDS[i]) return (i + 1) as GrowthStage;
+  }
+  return 10;
+}
+
 export function growthStage(habits: Habit[], logs: HabitLog[]): { stage: GrowthStage; avgStreak: number } {
   const active = habits.filter((h) => !h.archived);
   if (active.length === 0) return { stage: 1, avgStreak: 0 };
@@ -12,15 +19,7 @@ export function growthStage(habits: Habit[], logs: HabitLog[]): { stage: GrowthS
   const total = active.reduce((sum, h) => sum + currentStreak(h, logs), 0);
   const avgStreak = total / active.length;
 
-  let stage: GrowthStage = 10;
-  for (let i = 0; i < THRESHOLDS.length; i++) {
-    if (avgStreak < THRESHOLDS[i]) {
-      stage = (i + 1) as GrowthStage;
-      break;
-    }
-  }
-
-  return { stage, avgStreak };
+  return { stage: stageForStreak(avgStreak), avgStreak };
 }
 
 export const STAGE_LABEL: Record<GrowthStage, string> = {
