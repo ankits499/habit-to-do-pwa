@@ -3,9 +3,17 @@ import { precacheAndRoute } from "workbox-precaching";
 
 declare let self: ServiceWorkerGlobalScope;
 
-// There's no server, so reminders fire client-side while the app is open
-// (see useReminderCheck) rather than via a real push event.
 precacheAndRoute(self.__WB_MANIFEST);
+
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "Log today's habits", {
+      body: data.body,
+      icon: "/icons/icon-192.png",
+    }),
+  );
+});
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

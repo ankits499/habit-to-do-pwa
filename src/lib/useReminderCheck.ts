@@ -1,56 +1,36 @@
-import { useEffect } from "react";
-import { habitLogsRepo, habitsRepo } from "../data/habits";
-import { reminderSettingsRepo } from "../data/reminderSettings";
-import { isScheduledOn, todayISO } from "./dates";
+import { pushSubscriptionsRepo } from "../data/pushSubscriptions";
 
-const CHECK_INTERVAL_MS = 60_000;
-const FIRED_KEY = "habit-todo:reminder_fired_on";
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-/** While the app is open, poll once a minute and fire a local Notification
- * once the reminder time has passed if today's scheduled habits aren't all
- * logged yet. */
-export function useReminderCheck() {
-  useEffect(() => {
-    const check = async () => {
-      const settings = await reminderSettingsRepo.get();
-      if (!settings.enabled) return;
-      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-
-      const today = todayISO();
-      if (localStorage.getItem(FIRED_KEY) === today) return;
-
-      const now = new Date();
-      const [h, m] = settings.reminder_time.split(":").map(Number);
-      const reminderPassed = now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
-      if (!reminderPassed) return;
-
-      const [habits, logs] = await Promise.all([habitsRepo.list(), habitLogsRepo.listAll()]);
-      const doneToday = new Set(logs.filter((l) => l.log_date === today).map((l) => l.habit_id));
-      const pending = habits.filter(
-        (h) => !h.archived && isScheduledOn(h.frequency, today) && !doneToday.has(h.id),
-      );
-      if (pending.length === 0) return;
-
-      const registration = await navigator.serviceWorker?.ready;
-      if (!registration) return;
-      await registration.showNotification("Log today's habits", {
-        body:
-          pending.length === 1
-            ? `"${pending[0].name}" isn't marked done yet.`
-            : `${pending.length} habits aren't marked done yet.`,
-        icon: "/icons/icon-192.png",
-      });
-      localStorage.setItem(FIRED_KEY, today);
-    };
-
-    check();
-    const id = setInterval(check, CHECK_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
+function urlBase64ToUint8Array(base64: string): BufferSource {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const base64Safe = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64Safe);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0))).buffer;
 }
 
 export async function requestNotificationPermission() {
   if (typeof Notification === "undefined") return "unsupported" as const;
   if (Notification.permission === "granted") return "granted" as const;
   return Notification.requestPermission();
+}
+
+/** Requests notification permission, then registers this device for Web
+ * Push and saves the subscription so the server-side reminder cron
+ * (Supabase Edge Function `send-reminders`) can deliver notifications even
+ * when the app isn't open. */
+export async function subscribeToPush(): Promise<NotificationPermission | "unsupported"> {
+  const permission = await requestNotificationPermission();
+  if (permission !== "granted" || !VAPID_PUBLIC_KEY) return permission;
+
+  const registration = await navigator.serviceWorker.ready;
+  const existing = await registration.pushManager.getSubscription();
+  const subscription =
+    existing ??
+    (await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    }));
+  await pushSubscriptionsRepo.save(subscription);
+  return permission;
 }

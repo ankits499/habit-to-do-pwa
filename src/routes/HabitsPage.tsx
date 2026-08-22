@@ -21,7 +21,7 @@ import type { Habit, HabitLog, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
-import { requestNotificationPermission } from "../lib/useReminderCheck";
+import { subscribeToPush } from "../lib/useReminderCheck";
 
 const STATS_DAYS = 30;
 
@@ -577,7 +577,7 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
 
   async function save(close: () => void) {
     if (enabled) {
-      const result = await requestNotificationPermission();
+      const result = await subscribeToPush();
       setPermission(result);
     }
     update.mutate({
@@ -644,11 +644,6 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
             <p className="mt-3 text-xs text-[var(--danger)]">
               Notifications are blocked for this app. Enable them in your device's notification
               settings to get reminders.
-            </p>
-          )}
-          {enabled && permission === "granted" && (
-            <p className="mt-3 text-xs text-[var(--ink-muted)]">
-              Reminders fire while the app is open or was recently in the background.
             </p>
           )}
 
