@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { QuoteStrip } from "../components/QuoteStrip";
 import { BottomSheet } from "../components/BottomSheet";
-import { InlineComposer } from "../components/InlineComposer";
 import { DotStrip } from "../components/DotStrip";
 import { HabitCalendar } from "../components/HabitCalendar";
 import { GrowthTree } from "../components/GrowthTree";
-import { CheckIcon, ChevronRightIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
+import { CalendarIcon, CheckIcon, ChevronRightIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
   useAddHabit,
   useDeleteHabit,
@@ -14,12 +13,13 @@ import {
   useHabitLogs,
   useHabits,
   useSetHabitArchived,
+  useToggleHabitForDate,
   useToggleHabitToday,
 } from "../features/habits/hooks";
 import { useReminderSettings, useUpdateReminderSettings } from "../features/reminders/hooks";
 import { useAuth } from "../auth/AuthProvider";
 import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
-import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
+import { addDays, formatDueDate, isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
 import { subscribeToPush } from "../lib/useReminderCheck";
@@ -36,11 +36,9 @@ export function HabitsPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
   const [overviewOpen, setOverviewOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   function openComposer() {
     setComposing(true);
-    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
@@ -85,7 +83,7 @@ export function HabitsPage() {
 
       <QuoteStrip seed="habits" />
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
           {!isLoading && habits.length > 0 && (
             <button
@@ -109,8 +107,6 @@ export function HabitsPage() {
               <ChevronRightIcon className="h-5 w-5 shrink-0 text-[var(--ink-muted)]" />
             </button>
           )}
-
-          {composing && <ComposeHabit onDone={() => setComposing(false)} />}
 
           {!isLoading && habits.length === 0 && !composing && (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -153,6 +149,8 @@ export function HabitsPage() {
         </div>
       </div>
 
+      {composing && <AddHabitSheet onDone={() => setComposing(false)} />}
+
       {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
 
       {statsHabit && (
@@ -186,10 +184,13 @@ function HabitRow({
 }) {
   const toggle = useToggleHabitToday();
   const today = todayISO();
+  const yesterday = addDays(today, -1);
   const scheduledToday = isScheduledOn(habit.frequency, today);
+  const scheduledYesterday = isScheduledOn(habit.frequency, yesterday);
   const doneToday = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
   const strip = buildStrip(habit, logs, STRIP_DAYS);
   const streak = currentStreak(habit, logs);
+  const [loggingPastDay, setLoggingPastDay] = useState(false);
 
   return (
     <li className="group flex items-center gap-3 py-3.5">
@@ -222,7 +223,96 @@ function HabitRow({
           <DotStrip cells={strip} showLabels />
         </div>
       </button>
+
+      {scheduledYesterday && (
+        <button
+          type="button"
+          aria-label="Log a missed day"
+          title="Log a missed day"
+          onClick={() => setLoggingPastDay(true)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+        >
+          <CalendarIcon className="h-[18px] w-[18px]" />
+        </button>
+      )}
+
+      {loggingPastDay && (
+        <LogPastDaySheet
+          habit={habit}
+          logs={logs}
+          yesterday={yesterday}
+          onClose={() => setLoggingPastDay(false)}
+        />
+      )}
     </li>
+  );
+}
+
+function LogPastDaySheet({
+  habit,
+  logs,
+  yesterday,
+  onClose,
+}: {
+  habit: Habit;
+  logs: { habit_id: string; log_date: string }[];
+  yesterday: string;
+  onClose: () => void;
+}) {
+  const toggleDate = useToggleHabitForDate();
+  const doneYesterday = logs.some((l) => l.habit_id === habit.id && l.log_date === yesterday);
+  const [justLogged, setJustLogged] = useState(false);
+
+  function logYesterday() {
+    toggleDate.mutate({ habitId: habit.id, date: yesterday, done: true });
+    setJustLogged(true);
+    setTimeout(onClose, 700);
+  }
+
+  return (
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+              {habit.name}
+            </h2>
+            <p className="mt-0.5 text-sm text-[var(--ink-muted)]">Log a day you missed.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={doneYesterday ? () => toggleDate.mutate({ habitId: habit.id, date: yesterday, done: false }) : logYesterday}
+            className={`flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-colors ${
+              doneYesterday
+                ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                : "border-[var(--line)] hover:border-[var(--ink-muted)]"
+            }`}
+          >
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                doneYesterday
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "border-[var(--line)] text-transparent"
+              }`}
+            >
+              <CheckIcon className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] text-[var(--ink)]">Yesterday</span>
+              <span className="block text-xs text-[var(--ink-muted)]">{formatDueDate(yesterday)}</span>
+            </span>
+            {justLogged && (
+              <span className="shrink-0 text-xs font-medium text-[var(--accent)]">Logged ✓</span>
+            )}
+          </button>
+
+          <button type="button" onClick={close} className="text-center text-sm text-[var(--ink-muted)]">
+            Close
+          </button>
+        </div>
+      )}
+    </BottomSheet>
   );
 }
 
@@ -471,7 +561,7 @@ function ArchivedHabitRow({ habit, onOpenStats }: { habit: Habit; onOpenStats: (
   );
 }
 
-function ComposeHabit({ onDone }: { onDone: () => void }) {
+function AddHabitSheet({ onDone }: { onDone: () => void }) {
   const add = useAddHabit();
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"daily" | "weekdays">("daily");
@@ -490,12 +580,15 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <InlineComposer onClose={onDone}>
+    <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-5">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+            New habit
+          </h2>
+
           <input
             ref={inputRef}
-            autoFocus
             placeholder="Habit name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -503,52 +596,57 @@ function ComposeHabit({ onDone }: { onDone: () => void }) {
               if (e.key === "Enter") submit(close);
               if (e.key === "Escape") close();
             }}
-            className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            className="w-full border-b border-[var(--line)] bg-transparent pb-2 font-[family-name:var(--font-display)] text-xl text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus-visible:border-[var(--accent)]"
           />
 
-          <div className="flex items-center gap-2">
-            <DateChip active={mode === "daily"} onClick={() => setMode("daily")}>
-              Daily
-            </DateChip>
-            <DateChip active={mode === "weekdays"} onClick={() => setMode("weekdays")}>
-              Specific days
-            </DateChip>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              Frequency
+            </p>
+            <div className="flex items-center gap-2">
+              <DateChip active={mode === "daily"} onClick={() => setMode("daily")}>
+                Daily
+              </DateChip>
+              <DateChip active={mode === "weekdays"} onClick={() => setMode("weekdays")}>
+                Specific days
+              </DateChip>
+            </div>
           </div>
 
           {mode === "weekdays" && (
-            <div className="flex flex-wrap gap-1.5">
-              {ALL_WEEKDAYS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleDay(d)}
-                  className={`h-9 w-9 rounded-full text-xs font-medium transition-colors ${
-                    days.includes(d)
-                      ? "bg-[var(--accent)] text-[var(--accent-ink)]"
-                      : "border border-[var(--line)] text-[var(--ink-muted)]"
-                  }`}
-                >
-                  {weekdayLabel(d)[0]}
-                </button>
-              ))}
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                Days
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_WEEKDAYS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(d)}
+                    className={`h-10 w-10 rounded-full text-sm font-medium transition-colors ${
+                      days.includes(d)
+                        ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                        : "border border-[var(--line)] text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {weekdayLabel(d)[0]}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-3">
-            <button type="button" onClick={close} className="p-1.5 text-[var(--ink-muted)]">
-              <XIcon className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => submit(close)}
-              className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-medium text-[var(--accent-ink)]"
-            >
-              Add
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => submit(close)}
+            className="w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
+          >
+            Add habit
+          </button>
         </div>
       )}
-    </InlineComposer>
+    </BottomSheet>
   );
 }
 
@@ -565,7 +663,7 @@ function DateChip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition-colors ${
+      className={`flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors ${
         active
           ? "bg-[var(--accent)] text-[var(--accent-ink)]"
           : "border border-[var(--line)] text-[var(--ink-muted)]"

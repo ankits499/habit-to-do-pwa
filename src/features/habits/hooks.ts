@@ -42,6 +42,7 @@ const EDIT_HABIT_KEY = ["editHabit"];
 const SET_ARCHIVED_KEY = ["setHabitArchived"];
 const DELETE_HABIT_KEY = ["deleteHabit"];
 const TOGGLE_TODAY_KEY = ["toggleHabitToday"];
+const TOGGLE_DATE_KEY = ["toggleHabitForDate"];
 
 export function useAddHabit() {
   const qc = useQueryClient();
@@ -138,5 +139,27 @@ export function useToggleHabitToday() {
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(LOGS_KEY, ctx.previous),
     onSettled: () => settleOnce(qc, TOGGLE_TODAY_KEY, LOGS_KEY),
+  });
+}
+
+/** Same as {@link useToggleHabitToday} but for an arbitrary date, so a
+ * forgotten check-in from a previous day can still be logged. */
+export function useToggleHabitForDate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: TOGGLE_DATE_KEY,
+    mutationFn: ({ habitId, date, done }: { habitId: string; date: string; done: boolean }) =>
+      habitLogsRepo.setDone(habitId, date, done),
+    onMutate: async ({ habitId, date, done }) => {
+      const previous = await beginOptimistic<HabitLog[]>(qc, LOGS_KEY);
+      qc.setQueryData<HabitLog[]>(LOGS_KEY, (old = []) =>
+        done
+          ? [...old, { habit_id: habitId, log_date: date }]
+          : old.filter((l) => !(l.habit_id === habitId && l.log_date === date)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(LOGS_KEY, ctx.previous),
+    onSettled: () => settleOnce(qc, TOGGLE_DATE_KEY, LOGS_KEY),
   });
 }

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { QuoteStrip } from "../components/QuoteStrip";
-import { InlineComposer } from "../components/InlineComposer";
+import { BottomSheet } from "../components/BottomSheet";
 import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import {
   useAddTodo,
@@ -16,11 +16,9 @@ import { addDays, formatDueDate, todayISO } from "../lib/dates";
 export function TodosPage() {
   const { data: todos = [], isLoading } = useTodos();
   const [composing, setComposing] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   function openComposer() {
     setComposing(true);
-    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const groups = useMemo(() => {
@@ -54,14 +52,8 @@ export function TodosPage() {
 
       <QuoteStrip seed="todos" />
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
-          {composing && (
-            <div className="pt-4">
-              <ComposeTodoCard onDone={() => setComposing(false)} />
-            </div>
-          )}
-
           {!isLoading && todos.length === 0 && !composing && (
             <EmptyState onAdd={openComposer} />
           )}
@@ -72,6 +64,8 @@ export function TodosPage() {
           <TodoGroup label="Done" items={groups.done} muted />
         </div>
       </div>
+
+      {composing && <AddTodoSheet onDone={() => setComposing(false)} />}
     </div>
   );
 }
@@ -208,7 +202,7 @@ function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
   );
 }
 
-function ComposeTodoCard({ onDone }: { onDone: () => void }) {
+function AddTodoSheet({ onDone }: { onDone: () => void }) {
   const add = useAddTodo();
   const [text, setText] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -229,12 +223,15 @@ function ComposeTodoCard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <InlineComposer onClose={onDone}>
+    <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-5">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+            New todo
+          </h2>
+
           <input
             ref={inputRef}
-            autoFocus
             placeholder="What needs doing?"
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -242,52 +239,52 @@ function ComposeTodoCard({ onDone }: { onDone: () => void }) {
               if (e.key === "Enter") submit(close);
               if (e.key === "Escape") close();
             }}
-            className="w-full bg-transparent text-[15px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            className="w-full border-b border-[var(--line)] bg-transparent pb-2 font-[family-name:var(--font-display)] text-xl text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus-visible:border-[var(--accent)]"
           />
 
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <DateChip active={isNoDate} onClick={() => setDueDate("")}>
-              No date
-            </DateChip>
-            <DateChip active={isToday} onClick={() => setDueDate(today)}>
-              Today
-            </DateChip>
-            <DateChip active={isTomorrow} onClick={() => setDueDate(tomorrow)}>
-              Tomorrow
-            </DateChip>
-            <div className="relative shrink-0">
-              <DateChip active={isCustom} onClick={() => {}}>
-                {isCustom ? (
-                  formatDueDate(dueDate)
-                ) : (
-                  <CalendarIcon className="h-4 w-4" />
-                )}
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              Due
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <DateChip active={isNoDate} onClick={() => setDueDate("")}>
+                No date
               </DateChip>
-              <input
-                type="date"
-                aria-label="Pick a date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
+              <DateChip active={isToday} onClick={() => setDueDate(today)}>
+                Today
+              </DateChip>
+              <DateChip active={isTomorrow} onClick={() => setDueDate(tomorrow)}>
+                Tomorrow
+              </DateChip>
+              <div className="relative shrink-0">
+                <DateChip active={isCustom} onClick={() => {}}>
+                  {isCustom ? (
+                    formatDueDate(dueDate)
+                  ) : (
+                    <CalendarIcon className="h-4 w-4" />
+                  )}
+                </DateChip>
+                <input
+                  type="date"
+                  aria-label="Pick a date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-3">
-            <button type="button" onClick={close} className="p-1.5 text-[var(--ink-muted)]">
-              <XIcon className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => submit(close)}
-              className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-medium text-[var(--accent-ink)]"
-            >
-              Add
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => submit(close)}
+            className="w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
+          >
+            Add todo
+          </button>
         </div>
       )}
-    </InlineComposer>
+    </BottomSheet>
   );
 }
 
@@ -304,7 +301,7 @@ function DateChip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition-colors ${
+      className={`flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors ${
         active
           ? "bg-[var(--accent)] text-[var(--accent-ink)]"
           : "border border-[var(--line)] text-[var(--ink-muted)]"
