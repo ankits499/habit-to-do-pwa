@@ -18,7 +18,7 @@ import {
 } from "../features/habits/hooks";
 import { useReminderSettings, useUpdateReminderSettings } from "../features/reminders/hooks";
 import { useAuth } from "../auth/AuthProvider";
-import type { Habit, HabitLog, Weekday } from "../data/types";
+import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
 import { isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
@@ -578,19 +578,42 @@ function DateChip({
 
 function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
   const { data: settings } = useReminderSettings();
+
+  return (
+    <BottomSheet onClose={onClose}>
+      {() =>
+        settings ? (
+          <ReminderSettingsForm settings={settings} onClose={onClose} />
+        ) : (
+          <p className="py-8 text-center text-sm text-[var(--ink-muted)]">Loading…</p>
+        )
+      }
+    </BottomSheet>
+  );
+}
+
+function ReminderSettingsForm({
+  settings,
+  onClose,
+}: {
+  settings: ReminderSettings;
+  onClose: () => void;
+}) {
   const update = useUpdateReminderSettings();
   const { signOut } = useAuth();
-  const [time, setTime] = useState(settings?.reminder_time ?? "20:00");
-  const [enabled, setEnabled] = useState(settings?.enabled ?? true);
+  const [time, setTime] = useState(settings.reminder_time);
+  const [enabled, setEnabled] = useState(settings.enabled);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     typeof Notification === "undefined" ? "unsupported" : Notification.permission,
   );
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const isStandalone =
     typeof window !== "undefined" &&
     (window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
-  async function save(close: () => void) {
+  async function save() {
+    setSaveState("saving");
     if (enabled) {
       try {
         const result = await subscribeToPush();
@@ -600,21 +623,25 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
         setPermission("denied");
       }
     }
-    update.mutate({
-      reminder_time: time,
-      enabled,
-      timezone: settings?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-    close();
+    try {
+      await update.mutateAsync({
+        reminder_time: time,
+        enabled,
+        timezone: settings.timezone,
+      });
+      setSaveState("saved");
+      setTimeout(onClose, 700);
+    } catch (err) {
+      console.error("Failed to save reminder settings", err);
+      setSaveState("error");
+    }
   }
 
   return (
-    <BottomSheet onClose={onClose}>
-      {(close) => (
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            Daily reminder
-          </h2>
+    <div>
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+        Daily reminder
+      </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
             A notification if you haven't logged today's habits by this time.
           </p>
@@ -667,12 +694,17 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
+          {saveState === "error" && (
+            <p className="mt-3 text-xs text-[var(--danger)]">Couldn't save — try again.</p>
+          )}
+
           <button
             type="button"
-            onClick={() => save(close)}
-            className="mt-5 w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)]"
+            onClick={() => save()}
+            disabled={saveState === "saving"}
+            className="mt-5 w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-60"
           >
-            Save
+            {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save"}
           </button>
 
           <div className="mt-6 border-t border-[var(--line)] pt-4">
@@ -684,8 +716,6 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
               Sign out
             </button>
           </div>
-        </div>
-      )}
-    </BottomSheet>
+    </div>
   );
 }
