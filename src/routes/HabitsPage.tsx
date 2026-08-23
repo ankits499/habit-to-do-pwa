@@ -592,8 +592,13 @@ function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
 
   async function save(close: () => void) {
     if (enabled) {
-      const result = await subscribeToPush();
-      setPermission(result);
+      try {
+        const result = await subscribeToPush();
+        setPermission(result);
+      } catch (err) {
+        console.error("Failed to subscribe to push notifications", err);
+        setPermission("denied");
+      }
     }
     update.mutate({
       reminder_time: time,
