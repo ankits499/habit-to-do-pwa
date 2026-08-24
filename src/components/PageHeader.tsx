@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ThemeToggle } from "./ThemeToggle";
 
 export function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
@@ -7,10 +6,7 @@ export function PageHeader({ title, action }: { title: string; action?: ReactNod
       <h1 className="font-[family-name:var(--font-display)] text-2xl font-medium tracking-tight text-[var(--ink)]">
         {title}
       </h1>
-      <div className="flex items-center gap-1">
-        {action}
-        <ThemeToggle />
-      </div>
+      {action && <div className="flex items-center gap-1">{action}</div>}
     </header>
   );
 }
