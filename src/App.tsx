@@ -5,7 +5,13 @@ import { BottomNav } from "./components/BottomNav";
 import { TodosPage } from "./routes/TodosPage";
 import { HabitsPage } from "./routes/HabitsPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+    },
+  },
+});
 
 function AppShell() {
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { QuoteStrip } from "../components/QuoteStrip";
 import { BottomSheet } from "../components/BottomSheet";
@@ -44,6 +44,14 @@ export function HabitsPage() {
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const { stage, avgStreak } = useMemo(() => growthStage(habits, logs), [habits, logs]);
+
+  // `statsHabit` only holds the id we're viewing; re-derive the object from
+  // the live query data each render so edits (e.g. a rename) show up in the
+  // sheet immediately instead of only after it's closed and reopened.
+  const liveStatsHabit = useMemo(
+    () => (statsHabit ? (habits.find((h) => h.id === statsHabit.id) ?? statsHabit) : null),
+    [statsHabit, habits],
+  );
 
   const overview = useMemo(() => {
     const today = todayISO();
@@ -129,7 +137,7 @@ export function HabitsPage() {
           {active.length > 0 && (
             <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
               {active.map((habit) => (
-                <HabitRow key={habit.id} habit={habit} logs={logs} onOpenStats={() => setStatsHabit(habit)} />
+                <HabitRow key={habit.id} habit={habit} logs={logs} onOpenStats={setStatsHabit} />
               ))}
             </ul>
           )}
@@ -141,7 +149,7 @@ export function HabitsPage() {
               </h2>
               <ul className="flex flex-col divide-y divide-[var(--line)]">
                 {archived.map((habit) => (
-                  <ArchivedHabitRow key={habit.id} habit={habit} onOpenStats={() => setStatsHabit(habit)} />
+                  <ArchivedHabitRow key={habit.id} habit={habit} onOpenStats={setStatsHabit} />
                 ))}
               </ul>
             </section>
@@ -153,8 +161,8 @@ export function HabitsPage() {
 
       {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
 
-      {statsHabit && (
-        <HabitStatsSheet habit={statsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
+      {liveStatsHabit && (
+        <HabitStatsSheet habit={liveStatsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
       )}
 
       {overviewOpen && (
@@ -173,24 +181,30 @@ export function HabitsPage() {
   );
 }
 
-function HabitRow({
+const HabitRow = memo(function HabitRow({
   habit,
   logs,
   onOpenStats,
 }: {
   habit: Habit;
-  logs: { habit_id: string; log_date: string }[];
-  onOpenStats: () => void;
+  logs: HabitLog[];
+  onOpenStats: (habit: Habit) => void;
 }) {
   const toggle = useToggleHabitToday();
   const today = todayISO();
   const yesterday = addDays(today, -1);
   const scheduledToday = isScheduledOn(habit.frequency, today);
   const scheduledYesterday = isScheduledOn(habit.frequency, yesterday);
-  const doneToday = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
-  const strip = buildStrip(habit, logs, STRIP_DAYS);
-  const streak = currentStreak(habit, logs);
   const [loggingPastDay, setLoggingPastDay] = useState(false);
+
+  const { doneToday, strip, streak } = useMemo(
+    () => ({
+      doneToday: logs.some((l) => l.habit_id === habit.id && l.log_date === today),
+      strip: buildStrip(habit, logs, STRIP_DAYS),
+      streak: currentStreak(habit, logs),
+    }),
+    [habit, logs, today],
+  );
 
   return (
     <li className="group flex items-center gap-3 py-3.5">
@@ -210,7 +224,7 @@ function HabitRow({
         <CheckIcon className="h-4 w-4" />
       </button>
 
-      <button type="button" onClick={onOpenStats} className="min-w-0 flex-1 text-left">
+      <button type="button" onClick={() => onOpenStats(habit)} className="min-w-0 flex-1 text-left">
         <div className="flex items-baseline gap-2">
           <p className="truncate text-[15px] text-[var(--ink)]">{habit.name}</p>
           {streak > 0 && (
@@ -246,7 +260,7 @@ function HabitRow({
       )}
     </li>
   );
-}
+});
 
 function LogPastDaySheet({
   habit,
@@ -325,10 +339,15 @@ function HabitStatsSheet({
   logs: HabitLog[];
   onClose: () => void;
 }) {
-  const streak = currentStreak(habit, logs);
-  const best = bestStreak(habit, logs);
-  const rate = completionRate(habit, logs, STATS_DAYS);
-  const total = logs.filter((l) => l.habit_id === habit.id).length;
+  const { streak, best, rate, total } = useMemo(
+    () => ({
+      streak: currentStreak(habit, logs),
+      best: bestStreak(habit, logs),
+      rate: completionRate(habit, logs, STATS_DAYS),
+      total: logs.filter((l) => l.habit_id === habit.id).length,
+    }),
+    [habit, logs],
+  );
 
   const edit = useEditHabit();
   const setArchived = useSetHabitArchived();
@@ -457,13 +476,15 @@ function AllHabitsSheet({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const today = todayISO();
-  const scheduledToday = habits.filter((h) => isScheduledOn(h.frequency, today));
-  const doneToday = scheduledToday.filter((h) =>
-    logs.some((l) => l.habit_id === h.id && l.log_date === today),
-  );
-
-  const rows = [...habits].sort((a, b) => currentStreak(b, logs) - currentStreak(a, logs));
+  const { doneToday, scheduledToday, rows } = useMemo(() => {
+    const today = todayISO();
+    const scheduledToday = habits.filter((h) => isScheduledOn(h.frequency, today));
+    const doneToday = scheduledToday.filter((h) =>
+      logs.some((l) => l.habit_id === h.id && l.log_date === today),
+    );
+    const rows = [...habits].sort((a, b) => currentStreak(b, logs) - currentStreak(a, logs));
+    return { doneToday, scheduledToday, rows };
+  }, [habits, logs]);
 
   return (
     <div
@@ -513,7 +534,7 @@ function AllHabitsSheet({
   );
 }
 
-function HabitTreeCard({
+const HabitTreeCard = memo(function HabitTreeCard({
   habit,
   logs,
   onOpen,
@@ -526,8 +547,14 @@ function HabitTreeCard({
   mounted: boolean;
   delayMs: number;
 }) {
-  const streak = currentStreak(habit, logs);
-  const strip = buildStrip(habit, logs, STRIP_DAYS);
+  const { streak, strip, momentum } = useMemo(
+    () => ({
+      streak: currentStreak(habit, logs),
+      strip: buildStrip(habit, logs, STRIP_DAYS),
+      momentum: growthMomentum(habit, logs),
+    }),
+    [habit, logs],
+  );
 
   return (
     <button
@@ -540,7 +567,7 @@ function HabitTreeCard({
       }}
       className="flex flex-col items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-4 text-center transition-colors hover:border-[var(--ink-muted)]"
     >
-      <GrowthTree stage={stageForStreak(growthMomentum(habit, logs))} scale={1.1} />
+      <GrowthTree stage={stageForStreak(momentum)} scale={1.1} />
       <div className="-mt-2 h-1.5 w-8 rounded-full bg-[var(--ink)] opacity-[0.08]" />
       <p className="w-full truncate text-sm text-[var(--ink)]">{habit.name}</p>
       <p className="font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
@@ -549,17 +576,23 @@ function HabitTreeCard({
       <DotStrip cells={strip} />
     </button>
   );
-}
+});
 
-function ArchivedHabitRow({ habit, onOpenStats }: { habit: Habit; onOpenStats: () => void }) {
+const ArchivedHabitRow = memo(function ArchivedHabitRow({
+  habit,
+  onOpenStats,
+}: {
+  habit: Habit;
+  onOpenStats: (habit: Habit) => void;
+}) {
   return (
     <li>
-      <button type="button" onClick={onOpenStats} className="w-full py-3 text-left">
+      <button type="button" onClick={() => onOpenStats(habit)} className="w-full py-3 text-left">
         <p className="truncate text-[15px] text-[var(--ink-muted)]">{habit.name}</p>
       </button>
     </li>
   );
-}
+});
 
 function AddHabitSheet({ onDone }: { onDone: () => void }) {
   const add = useAddHabit();
@@ -710,15 +743,45 @@ function ReminderSettingsForm({
     (window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
+  // Self-heal: reminders can be marked "enabled" in the database with no
+  // matching push subscription (e.g. it expired, or a previous save wrongly
+  // persisted enabled:true — see save() below). Silently re-attempt the
+  // subscription on open so a genuinely broken setup surfaces via the
+  // permission-based warnings below instead of staying invisibly dead.
+  useEffect(() => {
+    // Only re-subscribe silently when permission was already granted —
+    // requesting permission itself must stay behind the explicit Save
+    // button tap, since browsers require a user gesture for that prompt.
+    if (!settings.enabled || typeof Notification === "undefined" || Notification.permission !== "granted") {
+      return;
+    }
+    subscribeToPush()
+      .then(setPermission)
+      .catch((err) => {
+        console.error("Failed to refresh push subscription", err);
+        setPermission("denied");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function save() {
     setSaveState("saving");
     if (enabled) {
+      let result: NotificationPermission | "unsupported";
       try {
-        const result = await subscribeToPush();
-        setPermission(result);
+        result = await subscribeToPush();
       } catch (err) {
         console.error("Failed to subscribe to push notifications", err);
-        setPermission("denied");
+        result = "denied";
+      }
+      setPermission(result);
+      // Don't persist `enabled: true` unless a push subscription actually
+      // exists — otherwise the sheet shows "Saved ✓" while no device is
+      // registered to receive anything, and the reminder silently never
+      // fires (this was masking a real failure on iOS).
+      if (result !== "granted") {
+        setSaveState("error");
+        return;
       }
     }
     try {
@@ -789,6 +852,11 @@ function ReminderSettingsForm({
             <p className="mt-3 text-xs text-[var(--danger)]">
               Notifications are blocked for this app. Enable them in your device's notification
               settings to get reminders.
+            </p>
+          )}
+          {enabled && permission === "default" && isStandalone && (
+            <p className="mt-3 text-xs text-[var(--ink-muted)]">
+              Tap Save to allow notifications — you'll get a one-time permission prompt.
             </p>
           )}
 
