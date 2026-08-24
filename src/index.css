@@ -50,6 +50,18 @@ body,
 
 html {
   touch-action: manipulation;
+  background: var(--paper);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
+  }
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
@@ -59,7 +71,6 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light dark;
   overflow: hidden;
   position: fixed;
   inset: 0;
