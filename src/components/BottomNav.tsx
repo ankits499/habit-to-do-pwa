@@ -3,7 +3,7 @@ import { FlameIcon, ListIcon } from "./icons";
 
 export function BottomNav() {
   return (
-    <nav className="shrink-0 border-t border-[var(--line)] bg-[var(--paper)] pb-[min(env(safe-area-inset-bottom),2.5rem)]">
+    <nav className="shrink-0 border-t border-[var(--line)] bg-[var(--paper)] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-[480px]">
         <NavTab to="/" label="Todos" icon={<ListIcon className="h-5 w-5" />} end />
         <NavTab to="/habits" label="Habits" icon={<FlameIcon className="h-5 w-5" />} />
