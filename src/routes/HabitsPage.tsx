@@ -18,8 +18,10 @@ import {
 } from "../features/habits/hooks";
 import { useReminderSettings, useUpdateReminderSettings } from "../features/reminders/hooks";
 import { useAuth } from "../auth/AuthProvider";
+import { habitLogsRepo, habitsRepo } from "../data/habits";
+import { todosRepo } from "../data/todos";
 import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
-import { addDays, formatDueDate, isScheduledOn, todayISO, weekdayLabel } from "../lib/dates";
+import { addDays, formatDueDate, isScheduledOn, toISODate, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
 import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
 import { subscribeToPush } from "../lib/useReminderCheck";
@@ -181,6 +183,8 @@ export function HabitsPage() {
   );
 }
 
+const BACKDATE_DAYS = 7;
+
 const HabitRow = memo(function HabitRow({
   habit,
   logs,
@@ -192,9 +196,13 @@ const HabitRow = memo(function HabitRow({
 }) {
   const toggle = useToggleHabitToday();
   const today = todayISO();
-  const yesterday = addDays(today, -1);
+  const createdOn = toISODate(new Date(habit.created_at));
+  const pastDays = Array.from({ length: BACKDATE_DAYS }, (_, i) => addDays(today, -(i + 1))).filter(
+    (d) => d >= createdOn && isScheduledOn(habit.frequency, d),
+  );
+  // Not yet saved server-side; writing a log now would fail on the fake id.
+  const pending = habit.id.startsWith("optimistic-");
   const scheduledToday = isScheduledOn(habit.frequency, today);
-  const scheduledYesterday = isScheduledOn(habit.frequency, yesterday);
   const [loggingPastDay, setLoggingPastDay] = useState(false);
 
   const { doneToday, strip, streak } = useMemo(
@@ -210,7 +218,7 @@ const HabitRow = memo(function HabitRow({
     <li className="group flex items-center gap-3 py-3.5">
       <button
         type="button"
-        disabled={!scheduledToday}
+        disabled={!scheduledToday || pending}
         aria-label={doneToday ? "Mark not done for today" : "Mark done for today"}
         onClick={() => toggle.mutate({ habitId: habit.id, done: !doneToday })}
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all ${
@@ -238,7 +246,7 @@ const HabitRow = memo(function HabitRow({
         </div>
       </button>
 
-      {scheduledYesterday && (
+      {pastDays.length > 0 && !pending && (
         <button
           type="button"
           aria-label="Log a missed day"
@@ -254,7 +262,7 @@ const HabitRow = memo(function HabitRow({
         <LogPastDaySheet
           habit={habit}
           logs={logs}
-          yesterday={yesterday}
+          days={pastDays}
           onClose={() => setLoggingPastDay(false)}
         />
       )}
@@ -265,23 +273,16 @@ const HabitRow = memo(function HabitRow({
 function LogPastDaySheet({
   habit,
   logs,
-  yesterday,
+  days,
   onClose,
 }: {
   habit: Habit;
   logs: { habit_id: string; log_date: string }[];
-  yesterday: string;
+  days: string[];
   onClose: () => void;
 }) {
   const toggleDate = useToggleHabitForDate();
-  const doneYesterday = logs.some((l) => l.habit_id === habit.id && l.log_date === yesterday);
-  const [justLogged, setJustLogged] = useState(false);
-
-  function logYesterday() {
-    toggleDate.mutate({ habitId: habit.id, date: yesterday, done: true });
-    setJustLogged(true);
-    setTimeout(onClose, 700);
-  }
+  const done = new Set(logs.filter((l) => l.habit_id === habit.id).map((l) => l.log_date));
 
   return (
     <BottomSheet onClose={onClose}>
@@ -291,43 +292,61 @@ function LogPastDaySheet({
             <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
               {habit.name}
             </h2>
-            <p className="mt-0.5 text-sm text-[var(--ink-muted)]">Log a day you missed.</p>
+            <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
+              Log a day you missed, up to {BACKDATE_DAYS} days back.
+            </p>
           </div>
 
-          <button
-            type="button"
-            onClick={doneYesterday ? () => toggleDate.mutate({ habitId: habit.id, date: yesterday, done: false }) : logYesterday}
-            className={`flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-colors ${
-              doneYesterday
-                ? "border-[var(--accent)] bg-[var(--accent)]/10"
-                : "border-[var(--line)] hover:border-[var(--ink-muted)]"
-            }`}
-          >
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                doneYesterday
-                  ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
-                  : "border-[var(--line)] text-transparent"
-              }`}
-            >
-              <CheckIcon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] text-[var(--ink)]">Yesterday</span>
-              <span className="block text-xs text-[var(--ink-muted)]">{formatDueDate(yesterday)}</span>
-            </span>
-            {justLogged && (
-              <span className="shrink-0 text-xs font-medium text-[var(--accent)]">Logged ✓</span>
-            )}
-          </button>
+          <ul className="flex flex-col gap-2">
+            {days.map((date, i) => {
+              const isDone = done.has(date);
+              return (
+                <li key={date}>
+                  <button
+                    type="button"
+                    aria-pressed={isDone}
+                    onClick={() => toggleDate.mutate({ habitId: habit.id, date, done: !isDone })}
+                    className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
+                      isDone
+                        ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                        : "border-[var(--line)] hover:border-[var(--ink-muted)]"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                        isDone
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                          : "border-[var(--line)] text-transparent"
+                      }`}
+                    >
+                      <CheckIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-[15px] text-[var(--ink)]">
+                      {i === 0 && days[0] === addDays(todayISO(), -1)
+                        ? "Yesterday"
+                        : weekdayFull(date)}
+                    </span>
+                    <span className="shrink-0 text-xs text-[var(--ink-muted)]">
+                      {formatDueDate(date)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
 
           <button type="button" onClick={close} className="text-center text-sm text-[var(--ink-muted)]">
-            Close
+            Done
           </button>
         </div>
       )}
     </BottomSheet>
   );
+}
+
+function weekdayFull(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "long" });
 }
 
 function HabitStatsSheet({
@@ -764,6 +783,22 @@ function ReminderSettingsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function exportData() {
+    const [habits, logs, todos] = await Promise.all([
+      habitsRepo.list(),
+      habitLogsRepo.listAll(),
+      todosRepo.list(),
+    ]);
+    const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), habits, logs, todos }, null, 2)], {
+      type: "application/json",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `habit-todo-export-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   async function save() {
     setSaveState("saving");
     if (enabled) {
@@ -873,7 +908,14 @@ function ReminderSettingsForm({
             {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save"}
           </button>
 
-          <div className="mt-6 border-t border-[var(--line)] pt-4">
+          <div className="mt-6 flex flex-col gap-3 border-t border-[var(--line)] pt-4">
+            <button
+              type="button"
+              onClick={exportData}
+              className="w-full text-center text-sm text-[var(--ink-muted)]"
+            >
+              Export my data (JSON)
+            </button>
             <button
               type="button"
               onClick={() => signOut()}

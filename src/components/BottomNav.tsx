@@ -1,11 +1,16 @@
 import { NavLink } from "react-router-dom";
 import { FlameIcon, ListIcon } from "./icons";
+import { useTodos } from "../features/todos/hooks";
+import { todayISO } from "../lib/dates";
 
 export function BottomNav() {
+  const { data: todos = [] } = useTodos();
+  const today = todayISO();
+  const overdue = todos.filter((t) => !t.done && t.due_date && t.due_date < today).length;
   return (
     <nav className="shrink-0 border-t border-[var(--line)] bg-[var(--paper)] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-[480px]">
-        <NavTab to="/" label="Todos" icon={<ListIcon className="h-5 w-5" />} end />
+        <NavTab to="/" label="Todos" icon={<ListIcon className="h-5 w-5" />} end badge={overdue} />
         <NavTab to="/habits" label="Habits" icon={<FlameIcon className="h-5 w-5" />} />
       </div>
     </nav>
@@ -17,11 +22,13 @@ function NavTab({
   label,
   icon,
   end,
+  badge,
 }: {
   to: string;
   label: string;
   icon: React.ReactNode;
   end?: boolean;
+  badge?: number;
 }) {
   return (
     <NavLink
@@ -33,7 +40,17 @@ function NavTab({
         }`
       }
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {!!badge && (
+          <span
+            aria-label={`${badge} overdue`}
+            className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-[var(--danger)] px-1 text-center text-[10px] font-semibold leading-4 text-[var(--accent-ink)]"
+          >
+            {badge}
+          </span>
+        )}
+      </span>
       {label}
     </NavLink>
   );

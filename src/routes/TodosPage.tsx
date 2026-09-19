@@ -27,6 +27,7 @@ export function TodosPage() {
     const done = todos.filter((t) => t.done);
     active.sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
     return {
+      overdue: active.filter((t) => t.due_date && t.due_date < today),
       today: active.filter((t) => t.due_date === today),
       upcoming: active.filter((t) => t.due_date && t.due_date > today),
       noDate: active.filter((t) => !t.due_date),
@@ -58,6 +59,7 @@ export function TodosPage() {
             <EmptyState onAdd={openComposer} />
           )}
 
+          <TodoGroup label="Overdue" items={groups.overdue} danger />
           <TodoGroup label="Today" items={groups.today} />
           <TodoGroup label="Upcoming" items={groups.upcoming} />
           <TodoGroup label="No date" items={groups.noDate} />
@@ -90,12 +92,26 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-function TodoGroup({ label, items, muted }: { label: string; items: Todo[]; muted?: boolean }) {
+function TodoGroup({
+  label,
+  items,
+  muted,
+  danger,
+}: {
+  label: string;
+  items: Todo[];
+  muted?: boolean;
+  danger?: boolean;
+}) {
   if (items.length === 0) return null;
   return (
     <section className="mt-6 first:mt-4">
-      <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-        {label}
+      <h2
+        className={`mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide ${
+          danger ? "text-[var(--danger)]" : "text-[var(--ink-muted)]"
+        }`}
+      >
+        {label} · {items.length}
       </h2>
       <ul className="flex flex-col divide-y divide-[var(--line)]">
         {items.map((todo) => (

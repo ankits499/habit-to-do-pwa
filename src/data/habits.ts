@@ -53,9 +53,20 @@ export const habitsRepo = {
 
 export const habitLogsRepo = {
   async listAll(): Promise<HabitLog[]> {
-    const { data, error } = await supabase.from("habit_logs").select("habit_id, log_date");
-    if (error) throw error;
-    return data;
+    // PostgREST caps a response at 1000 rows, so page through everything.
+    const PAGE = 1000;
+    const all: HabitLog[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("habit_logs")
+        .select("habit_id, log_date")
+        .order("log_date", { ascending: true })
+        .order("habit_id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      all.push(...data);
+      if (data.length < PAGE) return all;
+    }
   },
   async isDone(habit_id: string, log_date: string): Promise<boolean> {
     const { data, error } = await supabase

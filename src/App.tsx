@@ -4,6 +4,7 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { BottomNav } from "./components/BottomNav";
 import { TodosPage } from "./routes/TodosPage";
 import { HabitsPage } from "./routes/HabitsPage";
+import { useToday } from "./lib/useToday";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,9 +15,11 @@ const queryClient = new QueryClient({
 });
 
 function AppShell() {
+  const today = useToday();
   return (
     <div className="mx-auto flex h-full max-w-[480px] flex-col">
-      <div className="min-h-0 flex-1">
+      {/* Re-key on date change so every today-derived view recomputes. */}
+      <div key={today} className="min-h-0 flex-1">
         <Routes>
           <Route path="/" element={<TodosPage />} />
           <Route path="/habits" element={<HabitsPage />} />
