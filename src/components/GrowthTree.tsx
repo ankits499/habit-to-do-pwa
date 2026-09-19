@@ -8,7 +8,7 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
   const prevStage = useRef(stage);
   // Stable per-tree phase/tempo so several trees never move in sync.
   const seed = [...useId()].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  const sway = { animationDelay: `-${seed % 7000}ms`, animationDuration: `${6500 + (seed % 1800)}ms` };
+  const sway = { animationDelay: `-${seed % 5000}ms`, animationDuration: `${4500 + (seed % 1500)}ms` };
   const [justGrew, setJustGrew] = useState(false);
 
   useEffect(() => {

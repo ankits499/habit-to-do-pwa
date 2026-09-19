@@ -62,16 +62,16 @@ button {
 @keyframes sway {
   0%,
   100% {
-    transform: rotate(-1.2deg) skewX(-0.8deg) scaleY(1);
+    transform: rotate(-2.6deg) skewX(-1.8deg) scaleY(1);
   }
   30% {
-    transform: rotate(0.6deg) skewX(0.5deg) scaleY(1.008);
+    transform: rotate(1.2deg) skewX(1deg) scaleY(1.02);
   }
   55% {
-    transform: rotate(1.4deg) skewX(0.9deg) scaleY(1.004);
+    transform: rotate(3deg) skewX(2deg) scaleY(1.01);
   }
   80% {
-    transform: rotate(-0.4deg) skewX(-0.3deg) scaleY(1.01);
+    transform: rotate(-0.8deg) skewX(-0.6deg) scaleY(1.025);
   }
 }
 
@@ -114,7 +114,7 @@ button {
 .tree-sway {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: sway 7s ease-in-out infinite;
+  animation: sway 5s ease-in-out infinite;
 }
 
 .twinkle {
