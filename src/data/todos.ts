@@ -11,7 +11,7 @@ export const todosRepo = {
   async list(): Promise<Todo[]> {
     const { data, error } = await supabase
       .from("todos")
-      .select("id, text, due_date, done, created_at")
+      .select("id, text, due_date, done, created_at, completed_at")
       .order("created_at", { ascending: true });
     if (error) throw error;
     return data;
@@ -20,7 +20,7 @@ export const todosRepo = {
     const { data, error } = await supabase
       .from("todos")
       .insert({ text, due_date, done: false, user_id: await userId() })
-      .select("id, text, due_date, done, created_at")
+      .select("id, text, due_date, done, created_at, completed_at")
       .single();
     if (error) throw error;
     return data;
@@ -28,9 +28,9 @@ export const todosRepo = {
   async setDone(id: string, done: boolean): Promise<Todo> {
     const { data, error } = await supabase
       .from("todos")
-      .update({ done })
+      .update({ done, completed_at: done ? new Date().toISOString() : null })
       .eq("id", id)
-      .select("id, text, due_date, done, created_at")
+      .select("id, text, due_date, done, created_at, completed_at")
       .single();
     if (error) throw error;
     return data;
@@ -40,7 +40,7 @@ export const todosRepo = {
       .from("todos")
       .update(patch)
       .eq("id", id)
-      .select("id, text, due_date, done, created_at")
+      .select("id, text, due_date, done, created_at, completed_at")
       .single();
     if (error) throw error;
     return data;

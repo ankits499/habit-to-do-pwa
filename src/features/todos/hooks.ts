@@ -51,6 +51,7 @@ export function useAddTodo() {
         due_date,
         done: false,
         created_at: new Date().toISOString(),
+        completed_at: null,
       };
       qc.setQueryData<Todo[]>(KEY, (old = []) => [...old, optimistic]);
       return { previous };
@@ -67,7 +68,9 @@ export function useToggleTodo() {
     mutationFn: ({ id, done }: { id: string; done: boolean }) => todosRepo.setDone(id, done),
     onMutate: async ({ id, done }) => {
       const previous = await beginOptimistic<Todo[]>(qc, KEY);
-      qc.setQueryData<Todo[]>(KEY, (old = []) => old.map((t) => (t.id === id ? { ...t, done } : t)));
+      qc.setQueryData<Todo[]>(KEY, (old = []) => old.map((t) =>
+          t.id === id ? { ...t, done, completed_at: done ? new Date().toISOString() : null } : t,
+        ),);
       return { previous };
     },
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(KEY, ctx.previous),

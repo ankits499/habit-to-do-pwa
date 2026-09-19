@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FlameIcon, ListIcon } from "./icons";
+import { ListIcon, SproutIcon } from "./icons";
 import { useTodos } from "../features/todos/hooks";
 import { todayISO } from "../lib/dates";
 
@@ -10,8 +10,8 @@ export function BottomNav() {
   return (
     <nav className="shrink-0 border-t border-[var(--line)] bg-[var(--paper)] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-[480px]">
-        <NavTab to="/" label="Todos" icon={<ListIcon className="h-5 w-5" />} end badge={overdue} />
-        <NavTab to="/habits" label="Habits" icon={<FlameIcon className="h-5 w-5" />} />
+        <NavTab to="/" label="Today" icon={<ListIcon className="h-5 w-5" />} end badge={overdue} />
+        <NavTab to="/garden" label="Garden" icon={<SproutIcon className="h-5 w-5" />} />
       </div>
     </nav>
   );

@@ -73,3 +73,13 @@ export function XIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function SproutIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 21v-9" />
+      <path d="M12 12c0-4 3-6 8-6 0 4-3 6-8 6z" />
+      <path d="M12 15c0-3-2-5-7-5 0 3 2 5 7 5z" />
+    </svg>
+  );
+}

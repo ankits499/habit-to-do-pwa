@@ -1,98 +1,17 @@
-import { useMemo, useRef, useState } from "react";
-import { PageHeader } from "../components/PageHeader";
-import { QuoteStrip } from "../components/QuoteStrip";
-import { BottomSheet } from "../components/BottomSheet";
-import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
+import { useRef, useState } from "react";
+import { BottomSheet } from "./BottomSheet";
+import { KindSwitch } from "./KindSwitch";
+import { CalendarIcon, TrashIcon, XIcon } from "./icons";
 import {
   useAddTodo,
   useDeleteTodo,
   useEditTodo,
-  useTodos,
   useToggleTodo,
 } from "../features/todos/hooks";
 import type { Todo } from "../data/types";
 import { addDays, formatDueDate, todayISO } from "../lib/dates";
 
-export function TodosPage() {
-  const { data: todos = [], isLoading } = useTodos();
-  const [composing, setComposing] = useState(false);
-
-  function openComposer() {
-    setComposing(true);
-  }
-
-  const groups = useMemo(() => {
-    const today = todayISO();
-    const active = todos.filter((t) => !t.done);
-    const done = todos.filter((t) => t.done);
-    active.sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
-    return {
-      overdue: active.filter((t) => t.due_date && t.due_date < today),
-      today: active.filter((t) => t.due_date === today),
-      upcoming: active.filter((t) => t.due_date && t.due_date > today),
-      noDate: active.filter((t) => !t.due_date),
-      done: done.sort((a, b) => b.created_at.localeCompare(a.created_at)),
-    };
-  }, [todos]);
-
-  return (
-    <div className="flex h-full flex-col">
-      <PageHeader
-        title="Todos"
-        action={
-          <button
-            type="button"
-            aria-label="Add todo"
-            onClick={openComposer}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        }
-      />
-
-      <QuoteStrip seed="todos" />
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-[480px] px-5 pb-8">
-          {!isLoading && todos.length === 0 && !composing && (
-            <EmptyState onAdd={openComposer} />
-          )}
-
-          <TodoGroup label="Overdue" items={groups.overdue} danger />
-          <TodoGroup label="Today" items={groups.today} />
-          <TodoGroup label="Upcoming" items={groups.upcoming} />
-          <TodoGroup label="No date" items={groups.noDate} />
-          <TodoGroup label="Done" items={groups.done} muted />
-        </div>
-      </div>
-
-      {composing && <AddTodoSheet onDone={() => setComposing(false)} />}
-    </div>
-  );
-}
-
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-16 text-center">
-      <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
-        Nothing on your list
-      </p>
-      <p className="max-w-[30ch] text-sm text-[var(--ink-muted)]">
-        Add the first thing you need to get done today.
-      </p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
-      >
-        Add a todo
-      </button>
-    </div>
-  );
-}
-
-function TodoGroup({
+export function TodoGroup({
   label,
   items,
   muted,
@@ -218,7 +137,7 @@ function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
   );
 }
 
-function AddTodoSheet({ onDone }: { onDone: () => void }) {
+export function AddTodoSheet({ onDone, onSwitch }: { onDone: () => void; onSwitch?: () => void }) {
   const add = useAddTodo();
   const [text, setText] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -242,9 +161,13 @@ function AddTodoSheet({ onDone }: { onDone: () => void }) {
     <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
         <div className="flex flex-col gap-5">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            New todo
-          </h2>
+          {onSwitch ? (
+            <KindSwitch kind="todo" onSwitch={onSwitch} />
+          ) : (
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+              New todo
+            </h2>
+          )}
 
           <input
             ref={inputRef}

@@ -1,17 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { PageHeader } from "../components/PageHeader";
-import { QuoteStrip } from "../components/QuoteStrip";
-import { BottomSheet } from "../components/BottomSheet";
-import { DotStrip } from "../components/DotStrip";
-import { HabitCalendar } from "../components/HabitCalendar";
-import { GrowthTree } from "../components/GrowthTree";
-import { CalendarIcon, CheckIcon, ChevronRightIcon, GearIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
+import { BottomSheet } from "./BottomSheet";
+import { DotStrip } from "./DotStrip";
+import { KindSwitch } from "./KindSwitch";
+import { HabitCalendar } from "./HabitCalendar";
+import { GrowthTree } from "./GrowthTree";
+import { CalendarIcon, CheckIcon, TrashIcon } from "./icons";
 import {
   useAddHabit,
   useDeleteHabit,
   useEditHabit,
-  useHabitLogs,
-  useHabits,
   useSetHabitArchived,
   useToggleHabitForDate,
   useToggleHabitToday,
@@ -23,7 +20,7 @@ import { todosRepo } from "../data/todos";
 import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
 import { addDays, formatDueDate, isScheduledOn, toISODate, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
-import { growthStage, stageForStreak, STAGE_LABEL, type GrowthStage } from "../lib/growth";
+import { stageForStreak } from "../lib/growth";
 import { subscribeToPush } from "../lib/useReminderCheck";
 
 const STATS_DAYS = 30;
@@ -31,166 +28,9 @@ const STATS_DAYS = 30;
 const STRIP_DAYS = 7;
 const ALL_WEEKDAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
 
-export function HabitsPage() {
-  const { data: habits = [], isLoading } = useHabits();
-  const { data: logs = [] } = useHabitLogs();
-  const [composing, setComposing] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
-  const [overviewOpen, setOverviewOpen] = useState(false);
-
-  function openComposer() {
-    setComposing(true);
-  }
-
-  const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
-  const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
-  const { stage, topStreak, daysToNext } = useMemo(() => growthStage(habits, logs), [habits, logs]);
-
-  // `statsHabit` only holds the id we're viewing; re-derive the object from
-  // the live query data each render so edits (e.g. a rename) show up in the
-  // sheet immediately instead of only after it's closed and reopened.
-  const liveStatsHabit = useMemo(
-    () => (statsHabit ? (habits.find((h) => h.id === statsHabit.id) ?? statsHabit) : null),
-    [statsHabit, habits],
-  );
-
-  const overview = useMemo(() => {
-    const today = todayISO();
-    const scheduledToday = active.filter((h) => isScheduledOn(h.frequency, today));
-    const doneToday = scheduledToday.filter((h) =>
-      logs.some((l) => l.habit_id === h.id && l.log_date === today),
-    );
-    const bestCurrent = active.reduce((max, h) => Math.max(max, currentStreak(h, logs)), 0);
-    return { scheduledToday: scheduledToday.length, doneToday: doneToday.length, bestCurrent };
-  }, [active, logs]);
-
-  return (
-    <div className="flex h-full flex-col">
-      <PageHeader
-        title="Habits"
-        action={
-          <>
-            <button
-              type="button"
-              aria-label="Reminder settings"
-              onClick={() => setSettingsOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
-            >
-              <GearIcon className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Add habit"
-              onClick={openComposer}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
-            >
-              <PlusIcon className="h-5 w-5" />
-            </button>
-          </>
-        }
-      />
-
-      <QuoteStrip seed="habits" />
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-[480px] px-5 pb-8">
-          {!isLoading && habits.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setOverviewOpen(true)}
-              className="mt-4 flex w-full items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5 text-left transition-colors hover:border-[var(--ink-muted)] active:border-[var(--ink-muted)]"
-            >
-              <GrowthTree stage={stage} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-[var(--ink)]">
-                  <span className="font-[family-name:var(--font-display)]">{STAGE_LABEL[stage]}</span>
-                  <span className="text-[var(--ink-muted)]"> · {topStreak}d streak</span>
-                </p>
-                {daysToNext !== null && (
-                  <p className="mt-0.5 truncate text-xs text-[var(--accent)]">
-                    {daysToNext} more day{daysToNext === 1 ? "" : "s"} to {STAGE_LABEL[(stage + 1) as GrowthStage]}
-                  </p>
-                )}
-                {active.length > 0 && (
-                  <p className="mt-1 truncate text-xs text-[var(--ink-muted)]">
-                    {overview.doneToday}/{overview.scheduledToday} today · {overview.bestCurrent}d best ·{" "}
-                    {active.length} active
-                  </p>
-                )}
-              </div>
-              <ChevronRightIcon className="h-5 w-5 shrink-0 text-[var(--ink-muted)]" />
-            </button>
-          )}
-
-          {!isLoading && habits.length === 0 && !composing && (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">
-                No habits yet
-              </p>
-              <p className="max-w-[30ch] text-sm text-[var(--ink-muted)]">
-                Define one to start building a streak.
-              </p>
-              <button
-                type="button"
-                onClick={openComposer}
-                className="mt-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)]"
-              >
-                Add a habit
-              </button>
-            </div>
-          )}
-
-          {active.length > 0 && (
-            <ul className="mt-4 flex flex-col divide-y divide-[var(--line)]">
-              {active.map((habit) => (
-                <HabitRow key={habit.id} habit={habit} logs={logs} onOpenStats={setStatsHabit} />
-              ))}
-            </ul>
-          )}
-
-          {archived.length > 0 && (
-            <section className="mt-8">
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Archived
-              </h2>
-              <ul className="flex flex-col divide-y divide-[var(--line)]">
-                {archived.map((habit) => (
-                  <ArchivedHabitRow key={habit.id} habit={habit} onOpenStats={setStatsHabit} />
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
-      </div>
-
-      {composing && <AddHabitSheet onDone={() => setComposing(false)} />}
-
-      {settingsOpen && <ReminderSettingsSheet onClose={() => setSettingsOpen(false)} />}
-
-      {liveStatsHabit && (
-        <HabitStatsSheet habit={liveStatsHabit} logs={logs} onClose={() => setStatsHabit(null)} />
-      )}
-
-      {overviewOpen && (
-        <AllHabitsSheet
-          habits={active}
-          logs={logs}
-          topStreak={topStreak}
-          onClose={() => setOverviewOpen(false)}
-          onOpenHabit={(habit) => {
-            setOverviewOpen(false);
-            setStatsHabit(habit);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
 const BACKDATE_DAYS = 7;
 
-const HabitRow = memo(function HabitRow({
+export const HabitRow = memo(function HabitRow({
   habit,
   logs,
   onOpenStats,
@@ -354,7 +194,7 @@ function weekdayFull(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "long" });
 }
 
-function HabitStatsSheet({
+export function HabitStatsSheet({
   habit,
   logs,
   onClose,
@@ -481,84 +321,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AllHabitsSheet({
-  habits,
-  logs,
-  topStreak,
-  onClose,
-  onOpenHabit,
-}: {
-  habits: Habit[];
-  logs: HabitLog[];
-  topStreak: number;
-  onClose: () => void;
-  onOpenHabit: (habit: Habit) => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  const { doneToday, scheduledToday, rows } = useMemo(() => {
-    const today = todayISO();
-    const scheduledToday = habits.filter((h) => isScheduledOn(h.frequency, today));
-    const doneToday = scheduledToday.filter((h) =>
-      logs.some((l) => l.habit_id === h.id && l.log_date === today),
-    );
-    const rows = [...habits].sort((a, b) => currentStreak(b, logs) - currentStreak(a, logs));
-    return { doneToday, scheduledToday, rows };
-  }, [habits, logs]);
-
-  return (
-    <div
-      style={{ opacity: mounted ? 1 : 0, transition: "opacity 180ms ease-out" }}
-      className="fixed inset-0 z-30 flex flex-col bg-[var(--paper)]"
-    >
-      <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-medium tracking-tight text-[var(--ink)]">
-            The orchard
-          </h1>
-          <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-            {doneToday.length}/{scheduledToday.length} done today · {topStreak}d streak
-          </p>
-        </div>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
-        >
-          <XIcon className="h-5 w-5" />
-        </button>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-[480px] px-5 py-5">
-          {rows.length === 0 ? (
-            <p className="py-16 text-center text-sm text-[var(--ink-muted)]">No habits yet.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {rows.map((habit, i) => (
-                <HabitTreeCard
-                  key={habit.id}
-                  habit={habit}
-                  logs={logs}
-                  onOpen={() => onOpenHabit(habit)}
-                  mounted={mounted}
-                  delayMs={i * 30}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const HabitTreeCard = memo(function HabitTreeCard({
+export const HabitTreeCard = memo(function HabitTreeCard({
   habit,
   logs,
   onOpen,
@@ -602,7 +365,7 @@ const HabitTreeCard = memo(function HabitTreeCard({
   );
 });
 
-const ArchivedHabitRow = memo(function ArchivedHabitRow({
+export const ArchivedHabitRow = memo(function ArchivedHabitRow({
   habit,
   onOpenStats,
 }: {
@@ -618,7 +381,7 @@ const ArchivedHabitRow = memo(function ArchivedHabitRow({
   );
 });
 
-function AddHabitSheet({ onDone }: { onDone: () => void }) {
+export function AddHabitSheet({ onDone, onSwitch }: { onDone: () => void; onSwitch?: () => void }) {
   const add = useAddHabit();
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"daily" | "weekdays">("daily");
@@ -640,9 +403,13 @@ function AddHabitSheet({ onDone }: { onDone: () => void }) {
     <BottomSheet onClose={onDone} initialFocus={inputRef}>
       {(close) => (
         <div className="flex flex-col gap-5">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
-            New habit
-          </h2>
+          {onSwitch ? (
+            <KindSwitch kind="habit" onSwitch={onSwitch} />
+          ) : (
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[var(--ink)]">
+              New habit
+            </h2>
+          )}
 
           <input
             ref={inputRef}
@@ -731,7 +498,7 @@ function DateChip({
   );
 }
 
-function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
+export function ReminderSettingsSheet({ onClose }: { onClose: () => void }) {
   const { data: settings } = useReminderSettings();
 
   return (

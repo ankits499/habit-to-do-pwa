@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { BottomNav } from "./components/BottomNav";
-import { TodosPage } from "./routes/TodosPage";
-import { HabitsPage } from "./routes/HabitsPage";
+import { TodayPage } from "./routes/TodayPage";
+import { GardenPage } from "./routes/GardenPage";
 import { useToday } from "./lib/useToday";
 
 const queryClient = new QueryClient({
@@ -21,8 +21,9 @@ function AppShell() {
       {/* Re-key on date change so every today-derived view recomputes. */}
       <div key={today} className="min-h-0 flex-1">
         <Routes>
-          <Route path="/" element={<TodosPage />} />
-          <Route path="/habits" element={<HabitsPage />} />
+          <Route path="/" element={<TodayPage />} />
+          <Route path="/garden" element={<GardenPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
       <BottomNav />

@@ -4,6 +4,7 @@ export type Todo = {
   due_date: string | null; // ISO date (yyyy-mm-dd)
   done: boolean;
   created_at: string;
+  completed_at: string | null; // set when done, cleared when undone
 };
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday
