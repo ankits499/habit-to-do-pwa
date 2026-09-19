@@ -23,7 +23,7 @@ import { todosRepo } from "../data/todos";
 import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
 import { addDays, formatDueDate, isScheduledOn, toISODate, todayISO, weekdayLabel } from "../lib/dates";
 import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
-import { growthStage, stageForStreak, STAGE_LABEL } from "../lib/growth";
+import { growthStage, stageForStreak, STAGE_LABEL, type GrowthStage } from "../lib/growth";
 import { subscribeToPush } from "../lib/useReminderCheck";
 
 const STATS_DAYS = 30;
@@ -45,7 +45,7 @@ export function HabitsPage() {
 
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
-  const { stage, avgStreak } = useMemo(() => growthStage(habits, logs), [habits, logs]);
+  const { stage, topStreak, daysToNext } = useMemo(() => growthStage(habits, logs), [habits, logs]);
 
   // `statsHabit` only holds the id we're viewing; re-derive the object from
   // the live query data each render so edits (e.g. a rename) show up in the
@@ -105,8 +105,13 @@ export function HabitsPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-[var(--ink)]">
                   <span className="font-[family-name:var(--font-display)]">{STAGE_LABEL[stage]}</span>
-                  <span className="text-[var(--ink-muted)]"> · {Math.round(avgStreak)}d avg</span>
+                  <span className="text-[var(--ink-muted)]"> · {topStreak}d streak</span>
                 </p>
+                {daysToNext !== null && (
+                  <p className="mt-0.5 truncate text-xs text-[var(--accent)]">
+                    {daysToNext} more day{daysToNext === 1 ? "" : "s"} to {STAGE_LABEL[(stage + 1) as GrowthStage]}
+                  </p>
+                )}
                 {active.length > 0 && (
                   <p className="mt-1 truncate text-xs text-[var(--ink-muted)]">
                     {overview.doneToday}/{overview.scheduledToday} today · {overview.bestCurrent}d best ·{" "}
@@ -171,7 +176,7 @@ export function HabitsPage() {
         <AllHabitsSheet
           habits={active}
           logs={logs}
-          avgStreak={avgStreak}
+          topStreak={topStreak}
           onClose={() => setOverviewOpen(false)}
           onOpenHabit={(habit) => {
             setOverviewOpen(false);
@@ -479,13 +484,13 @@ function StatTile({ label, value }: { label: string; value: string }) {
 function AllHabitsSheet({
   habits,
   logs,
-  avgStreak,
+  topStreak,
   onClose,
   onOpenHabit,
 }: {
   habits: Habit[];
   logs: HabitLog[];
-  avgStreak: number;
+  topStreak: number;
   onClose: () => void;
   onOpenHabit: (habit: Habit) => void;
 }) {
@@ -516,7 +521,7 @@ function AllHabitsSheet({
             The orchard
           </h1>
           <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-            {doneToday.length}/{scheduledToday.length} done today · {Math.round(avgStreak)}d avg
+            {doneToday.length}/{scheduledToday.length} done today · {topStreak}d streak
           </p>
         </div>
         <button

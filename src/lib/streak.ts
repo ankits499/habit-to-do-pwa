@@ -48,7 +48,7 @@ export function currentStreak(habit: Habit, logs: HabitLog[]): number {
 
 /** Growth momentum for the tree's stage: like a streak, but forgiving.
  * A missed scheduled day right after a completion is a free grace day (no
- * penalty); only a second consecutive miss starts decaying momentum (×0.6)
+ * penalty); only a second consecutive miss starts decaying momentum (×0.75)
  * instead of resetting it to 0. Use `currentStreak` for literal streak
  * stats/labels — this is only for picking the tree's stage. */
 export function growthMomentum(habit: Habit, logs: HabitLog[]): number {
@@ -70,7 +70,7 @@ export function growthMomentum(habit: Habit, logs: HabitLog[]): number {
       } else if (graceAvailable) {
         graceAvailable = false;
       } else {
-        momentum = Math.floor(momentum * 0.6);
+        momentum = Math.floor(momentum * 0.75);
       }
     }
     cursor = addDays(cursor, 1);

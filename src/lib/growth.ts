@@ -12,16 +12,29 @@ export function stageForStreak(streak: number): GrowthStage {
   return 10;
 }
 
-export function growthStage(habits: Habit[], logs: HabitLog[]): { stage: GrowthStage; avgStreak: number } {
+/** Each habit's momentum counts fully for the strongest habit, then 40% for
+ * the next, 16% for the next, and so on. Adding a habit can therefore only
+ * ever grow the tree (a new habit contributes >= 0), while still rewarding
+ * breadth — unlike an average, where a fresh habit at 0 drags a 30-day
+ * habit's tree down. */
+const HABIT_WEIGHT_DECAY = 0.4;
+
+export function growthStage(
+  habits: Habit[],
+  logs: HabitLog[],
+): { stage: GrowthStage; topStreak: number; daysToNext: number | null } {
   const active = habits.filter((h) => !h.archived);
-  if (active.length === 0) return { stage: 1, avgStreak: 0 };
+  if (active.length === 0) return { stage: 1, topStreak: 0, daysToNext: null };
 
-  const total = active.reduce((sum, h) => sum + currentStreak(h, logs), 0);
-  const avgStreak = total / active.length;
+  const topStreak = active.reduce((max, h) => Math.max(max, currentStreak(h, logs)), 0);
+  const momentums = active.map((h) => growthMomentum(h, logs)).sort((a, b) => b - a);
+  const score = momentums.reduce((sum, m, i) => sum + m * HABIT_WEIGHT_DECAY ** i, 0);
 
-  const avgMomentum = active.reduce((sum, h) => sum + growthMomentum(h, logs), 0) / active.length;
-
-  return { stage: stageForStreak(avgMomentum), avgStreak };
+  const stage = stageForStreak(score);
+  // Logging the strongest habit once adds a full point, so this is a
+  // "days of showing up" estimate for the next stage.
+  const daysToNext = stage === 10 ? null : Math.ceil(THRESHOLDS[stage - 1] - score);
+  return { stage, topStreak, daysToNext };
 }
 
 export const STAGE_LABEL: Record<GrowthStage, string> = {
