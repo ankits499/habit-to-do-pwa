@@ -8,6 +8,7 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
   const prevStage = useRef(stage);
   // Stable per-tree phase/tempo so several trees never move in sync.
   const seed = [...useId()].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const delay = (n: number) => ({ animationDelay: `-${(seed * (n + 3)) % 8000}ms` });
   const sway = { animationDelay: `-${seed % 5000}ms`, animationDuration: `${4500 + (seed % 1500)}ms` };
   const [justGrew, setJustGrew] = useState(false);
 
@@ -149,8 +150,29 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
         </g>
       </defs>
 
+      {/* Wind: two faint streaks blowing left to right, behind the tree. */}
+      <g fill="none" stroke="#f2f0ea" strokeWidth="1.2" strokeLinecap="round" shapeRendering="geometricPrecision">
+        <path className="wind" style={delay(0)} d="M2 118 q10 -7 20 0 t20 0" />
+        <path className="wind" style={{ ...delay(1), animationDuration: "7.5s" }} d="M8 168 q9 -6 18 0 t18 0" />
+      </g>
+
       <g className="tree-sway" style={sway}>
         <use href={`#stage-${stage}`} />
+      </g>
+
+      {/* Weather: a leaf on the wind (winter pine: snow instead). */}
+      <g shapeRendering="geometricPrecision" aria-hidden="true">
+        {stage >= 3 && stage !== 9 && (
+          <g transform="translate(-2 92)">
+            <path className="drift" style={delay(2)} d="M0 0 l4 -2.5 l3 2.5 l-4 2.5z" fill="#68a336" />
+          </g>
+        )}
+        {stage === 9 &&
+          [18, 52, 84].map((x, i) => (
+            <g key={x} transform={`translate(${x} 70)`}>
+              <circle className="fall" style={{ ...delay(i * 1.3), animationDuration: `${7 + i}s` }} r="1.3" fill="#f0f6fc" />
+            </g>
+          ))}
       </g>
     </svg>
   );

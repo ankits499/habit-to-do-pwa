@@ -121,6 +121,68 @@ button {
   animation: twinkle 3.2s ease-in-out infinite;
 }
 
+/* Ambient weather inside the tree svg. Base opacity 0 so that with reduced
+ * motion (animation: none) nothing is drawn. Delays are set per tree. */
+.wind,
+.drift,
+.fall {
+  opacity: 0;
+}
+.wind {
+  animation: wind 6s ease-in-out infinite;
+}
+.drift {
+  animation: drift 10s linear infinite;
+}
+.fall {
+  animation: fall 8s linear infinite;
+}
+
+@keyframes wind {
+  0% {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  35%,
+  65% {
+    opacity: 0.28;
+  }
+  100% {
+    transform: translateX(34px);
+    opacity: 0;
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(70px, 105px) rotate(300deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fall {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(10px, 150px);
+    opacity: 0;
+  }
+}
+
 .tree-grow {
   transform-box: fill-box;
   transform-origin: 50% 100%;
@@ -129,7 +191,10 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .tree-sway,
-  .twinkle {
+  .twinkle,
+  .wind,
+  .drift,
+  .fall {
     animation: none;
   }
 
