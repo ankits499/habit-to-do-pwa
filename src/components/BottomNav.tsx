@@ -8,7 +8,7 @@ export function BottomNav() {
   const today = todayISO();
   const overdue = todos.filter((t) => !t.done && t.due_date && t.due_date < today).length;
   return (
-    <nav className="shrink-0 border-t border-[var(--line)] bg-[var(--paper)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="shrink-0 bg-[var(--paper)] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-[480px]">
         <NavTab to="/" label="Today" icon={<ListIcon className="h-5 w-5" />} end badge={overdue} />
         <NavTab to="/garden" label="Garden" icon={<SproutIcon className="h-5 w-5" />} />
@@ -35,7 +35,7 @@ function NavTab({
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors ${
+        `flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
           isActive ? "text-[var(--accent)]" : "text-[var(--ink-muted)]"
         }`
       }

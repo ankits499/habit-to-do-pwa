@@ -22,6 +22,7 @@ export function GardenPage() {
   const { data: todos = [] } = useTodos();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -46,7 +47,7 @@ export function GardenPage() {
       todos
         .filter((t) => t.done)
         .sort((a, b) => (b.completed_at ?? b.created_at).localeCompare(a.completed_at ?? a.created_at))
-        .slice(0, 20),
+        .slice(0, 8),
     [todos],
   );
 
@@ -74,14 +75,14 @@ export function GardenPage() {
               {STAGE_LABEL[growth.stage]}
             </p>
             <p className="text-xs text-[var(--ink-muted)]">
-              Habits and todos both feed this tree.
-              {growth.daysToNext !== null &&
-                ` About ${growth.daysToNext} more day${growth.daysToNext === 1 ? "" : "s"} to ${STAGE_LABEL[(growth.stage + 1) as GrowthStage]}.`}
+              {growth.daysToNext !== null
+                ? `~${growth.daysToNext} more day${growth.daysToNext === 1 ? "" : "s"} to ${STAGE_LABEL[(growth.stage + 1) as GrowthStage]}`
+                : "Fully grown"}
             </p>
           </div>
 
           <section>
-            <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+            <h2 className="mb-2 text-xs text-[var(--ink-muted)]">
               Last {HEAT_DAYS} days
             </h2>
             <div className="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
@@ -98,10 +99,10 @@ export function GardenPage() {
 
           {active.length > 0 && (
             <section className="mt-8">
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              <h2 className="mb-2 text-xs text-[var(--ink-muted)]">
                 Orchard
               </h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-x-2 gap-y-5">
                 {active.map((habit, i) => (
                   <HabitTreeCard
                     key={habit.id}
@@ -118,10 +119,10 @@ export function GardenPage() {
 
           {completed.length > 0 && (
             <section className="mt-8">
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Recently completed
+              <h2 className="mb-2 text-xs text-[var(--ink-muted)]">
+                Completed
               </h2>
-              <ul className="flex flex-col divide-y divide-[var(--line)]">
+              <ul className="flex flex-col">
                 {completed.map((t) => (
                   <li key={t.id} className="flex items-baseline justify-between gap-3 py-2.5">
                     <span className="min-w-0 flex-1 truncate text-sm text-[var(--ink-muted)]">{t.text}</span>
@@ -138,10 +139,15 @@ export function GardenPage() {
 
           {archived.length > 0 && (
             <section className="mt-8">
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Archived
-              </h2>
-              <ul className="flex flex-col divide-y divide-[var(--line)]">
+              <button
+                type="button"
+                aria-expanded={showArchived}
+                onClick={() => setShowArchived((v) => !v)}
+                className="text-xs text-[var(--ink-muted)]"
+              >
+                Archived ({archived.length}) {showArchived ? "–" : "+"}
+              </button>
+              <ul className={`mt-1 flex-col ${showArchived ? "flex" : "hidden"}`}>
                 {archived.map((habit) => (
                   <ArchivedHabitRow key={habit.id} habit={habit} onOpenStats={setStatsHabit} />
                 ))}

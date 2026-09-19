@@ -25,14 +25,10 @@ export function TodoGroup({
   if (items.length === 0) return null;
   return (
     <section className="mt-6 first:mt-4">
-      <h2
-        className={`mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide ${
-          danger ? "text-[var(--danger)]" : "text-[var(--ink-muted)]"
-        }`}
-      >
-        {label} · {items.length}
+      <h2 className={`mb-1 text-xs ${danger ? "text-[var(--danger)]" : "text-[var(--ink-muted)]"}`}>
+        {danger ? `${label} · ${items.length}` : label}
       </h2>
-      <ul className="flex flex-col divide-y divide-[var(--line)]">
+      <ul className="flex flex-col">
         {items.map((todo) => (
           <TodoRow key={todo.id} todo={todo} muted={muted} />
         ))}
@@ -43,7 +39,6 @@ export function TodoGroup({
 
 function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
   const toggle = useToggleTodo();
-  const remove = useDeleteTodo();
   const [editing, setEditing] = useState(false);
 
   if (editing) {
@@ -80,20 +75,13 @@ function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
         )}
       </button>
 
-      <button
-        type="button"
-        aria-label="Delete todo"
-        onClick={() => remove.mutate(todo.id)}
-        className="flex h-8 w-8 shrink-0 items-center justify-center text-[var(--ink-muted)] transition-colors hover:text-[var(--danger)]"
-      >
-        <TrashIcon className="h-4 w-4" />
-      </button>
     </li>
   );
 }
 
 function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
   const edit = useEditTodo();
+  const remove = useDeleteTodo();
   const [text, setText] = useState(todo.text);
   const [dueDate, setDueDate] = useState(todo.due_date ?? "");
 
@@ -120,8 +108,16 @@ function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
           onChange={(e) => setDueDate(e.target.value)}
           className="rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm text-[var(--ink)]"
         />
-        <div className="ml-auto flex gap-2">
-          <button type="button" onClick={onDone} className="p-1.5 text-[var(--ink-muted)]">
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Delete todo"
+            onClick={() => remove.mutate(todo.id)}
+            className="p-1.5 text-[var(--ink-muted)] transition-colors hover:text-[var(--danger)]"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+          <button type="button" aria-label="Cancel" onClick={onDone} className="p-1.5 text-[var(--ink-muted)]">
             <XIcon className="h-4 w-4" />
           </button>
           <button

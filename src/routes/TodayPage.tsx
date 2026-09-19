@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
-import { QuoteStrip } from "../components/QuoteStrip";
 import { GrowthTree } from "../components/GrowthTree";
-import { PlusIcon, ChevronRightIcon } from "../components/icons";
+import { PlusIcon } from "../components/icons";
 import { AddHabitSheet, HabitRow, HabitStatsSheet } from "../components/HabitParts";
 import { AddTodoSheet, TodoGroup } from "../components/TodoParts";
 import { useHabitLogs, useHabits } from "../features/habits/hooks";
@@ -61,15 +60,13 @@ export function TodayPage() {
         }
       />
 
-      <QuoteStrip seed="today" />
-
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[480px] px-5 pb-8">
           {!loading && !empty && (
             <button
               type="button"
               onClick={() => navigate("/garden")}
-              className="mt-4 flex w-full items-center gap-4 rounded-lg border border-[var(--line)] px-4 py-3.5 text-left transition-colors hover:border-[var(--ink-muted)] active:border-[var(--ink-muted)]"
+              className="mt-2 flex w-full items-center gap-4 py-3 text-left"
             >
               <GrowthTree stage={growth.stage} />
               <div className="min-w-0 flex-1">
@@ -88,7 +85,6 @@ export function TodayPage() {
                   {pointsToday > 0 && <span className="text-[var(--accent)]"> · +{pointsToday} growth</span>}
                 </p>
               </div>
-              <ChevronRightIcon className="h-5 w-5 shrink-0 text-[var(--ink-muted)]" />
             </button>
           )}
 
@@ -112,10 +108,8 @@ export function TodayPage() {
 
           {view.dueHabits.length > 0 && (
             <section className="mt-6 first:mt-4">
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wide text-[var(--ink-muted)]">
-                Habits · {view.dueHabits.length}
-              </h2>
-              <ul className="flex flex-col divide-y divide-[var(--line)]">
+              <h2 className="mb-1 text-xs text-[var(--ink-muted)]">Habits</h2>
+              <ul className="flex flex-col">
                 {view.dueHabits.map((habit) => (
                   <HabitRow key={habit.id} habit={habit} logs={logs} onOpenStats={setStatsHabit} />
                 ))}

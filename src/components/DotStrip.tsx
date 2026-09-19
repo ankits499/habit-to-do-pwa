@@ -1,12 +1,10 @@
 import type { DayCell } from "../lib/streak";
-import { weekdayLabel } from "../lib/dates";
-import type { Weekday } from "../data/types";
 
-export function DotStrip({ cells, showLabels }: { cells: DayCell[]; showLabels?: boolean }) {
+export function DotStrip({ cells }: { cells: DayCell[] }) {
   return (
     <div>
       <div
-        className="flex gap-2"
+        className="flex gap-1.5"
         role="img"
         aria-label={`${cells.filter((c) => c.done).length} of the last ${cells.length} scheduled days done`}
       >
@@ -14,7 +12,7 @@ export function DotStrip({ cells, showLabels }: { cells: DayCell[]; showLabels?:
           <span
             key={cell.date}
             title={cell.date}
-            className={`h-3 w-3 rounded-full ${
+            className={`h-2.5 w-2.5 rounded-full ${
               !cell.scheduled
                 ? "bg-transparent"
                 : cell.done
@@ -24,18 +22,6 @@ export function DotStrip({ cells, showLabels }: { cells: DayCell[]; showLabels?:
           />
         ))}
       </div>
-      {showLabels && (
-        <div className="mt-1 flex gap-2" aria-hidden="true">
-          {cells.map((cell) => {
-            const weekday = new Date(`${cell.date}T12:00:00`).getDay() as Weekday;
-            return (
-              <span key={cell.date} className="w-3 text-center text-[10px] leading-none text-[var(--ink-muted)]">
-                {weekdayLabel(weekday)[0]}
-              </span>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

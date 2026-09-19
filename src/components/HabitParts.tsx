@@ -60,13 +60,13 @@ export const HabitRow = memo(function HabitRow({
   );
 
   return (
-    <li className="group flex items-center gap-3 py-3.5">
+    <li className="group flex items-center gap-3 py-3">
       <button
         type="button"
         disabled={!scheduledToday || pending}
         aria-label={doneToday ? "Mark not done for today" : "Mark done for today"}
         onClick={() => toggle.mutate({ habitId: habit.id, done: !doneToday })}
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all ${
           doneToday
             ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] scale-100"
             : scheduledToday
@@ -87,7 +87,7 @@ export const HabitRow = memo(function HabitRow({
           )}
         </div>
         <div className="mt-1.5">
-          <DotStrip cells={strip} showLabels />
+          <DotStrip cells={strip} />
         </div>
       </button>
 
@@ -97,7 +97,7 @@ export const HabitRow = memo(function HabitRow({
           aria-label="Log a missed day"
           title="Log a missed day"
           onClick={() => setLoggingPastDay(true)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink-muted)] opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100"
         >
           <CalendarIcon className="h-[18px] w-[18px]" />
         </button>
@@ -334,33 +334,46 @@ export const HabitTreeCard = memo(function HabitTreeCard({
   mounted: boolean;
   delayMs: number;
 }) {
-  const { streak, strip, momentum } = useMemo(
-    () => ({
+  const { streak, stage, state } = useMemo(() => {
+    const today = todayISO();
+    const scheduled = isScheduledOn(habit.frequency, today);
+    const done = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
+    return {
       streak: currentStreak(habit, logs),
-      strip: buildStrip(habit, logs, STRIP_DAYS),
-      momentum: growthMomentum(habit, logs),
-    }),
-    [habit, logs],
-  );
+      stage: stageForStreak(growthMomentum(habit, logs)),
+      state: !scheduled ? "rest" : done ? "done" : "open",
+    } as const;
+  }, [habit, logs]);
 
   return (
     <button
       type="button"
       onClick={onOpen}
+      aria-label={`${habit.name}${streak > 0 ? `, ${streak} day streak` : ""}${state === "done" ? ", done today" : ""}`}
       style={{
         opacity: mounted ? 1 : 0,
         transform: mounted ? "translateY(0)" : "translateY(4px)",
         transition: `opacity 320ms ease-out ${delayMs}ms, transform 320ms ease-out ${delayMs}ms`,
       }}
-      className="flex flex-col items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-4 text-center transition-colors hover:border-[var(--ink-muted)]"
+      className="flex min-w-0 flex-col items-center gap-1 text-center"
     >
-      <GrowthTree stage={stageForStreak(momentum)} scale={1.1} />
-      <div className="-mt-2 h-1.5 w-8 rounded-full bg-[var(--ink)] opacity-[0.08]" />
-      <p className="w-full truncate text-sm text-[var(--ink)]">{habit.name}</p>
-      <p className="font-[family-name:var(--font-display)] text-xs font-medium text-[var(--accent)]">
-        {streak > 0 ? `${streak} day${streak === 1 ? "" : "s"}` : "no streak yet"}
+      {/* Shared baseline: every tree stands on the same ground line. */}
+      <div
+        className="flex h-[124px] items-end transition-opacity"
+        style={{ opacity: state === "done" ? 1 : state === "open" ? 0.6 : 0.35 }}
+      >
+        <GrowthTree stage={stage} scale={0.75 + stage * 0.045} />
+      </div>
+      <div className="h-1.5 w-10 rounded-full bg-[var(--ink)] opacity-[0.07]" />
+      <p
+        className={`mt-1 w-full truncate text-sm ${state === "rest" ? "text-[var(--ink-muted)]" : "text-[var(--ink)]"}`}
+      >
+        {habit.name}
       </p>
-      <DotStrip cells={strip} />
+      <p className="flex h-4 items-center gap-1.5 font-[family-name:var(--font-display)] text-xs text-[var(--accent)]">
+        {state === "done" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />}
+        {streak > 0 && `${streak}d`}
+      </p>
     </button>
   );
 });
