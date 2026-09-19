@@ -5,24 +5,34 @@ const BASE_WIDTH = 56;
 const BASE_HEIGHT = 102;
 
 type Pt = [number, number];
-/** Where things happen, per stage, so nothing floats in empty sky:
- * perch = where the bird's feet touch; tip = a canopy edge a needle lets go
- * from; wind = heights of the two streaks (at the tree's own height);
- * fly = the butterfly's home, in free air beside the canopy. */
-const SCENE: Record<GrowthStage, { perch?: Pt; tip?: Pt; wind: [number, number]; fly?: Pt }> = {
+/** Where weather happens, per stage, so nothing floats in empty sky:
+ * tip = a canopy edge a needle lets go from; wind = heights of the two
+ * streaks (at the tree's own height). */
+const SCENE: Record<GrowthStage, { tip?: Pt; wind: [number, number] }> = {
   1: { wind: [212, 232] },
   2: { wind: [205, 230] },
   3: { tip: [72, 218], wind: [195, 225] },
-  4: { perch: [50, 166], tip: [76, 215], wind: [180, 210] },
-  5: { perch: [50, 146], tip: [80, 218], wind: [160, 205] },
-  6: { perch: [50, 126], tip: [78, 198], wind: [140, 190], fly: [86, 150] },
-  7: { perch: [50, 106], tip: [78, 180], wind: [120, 175], fly: [88, 130] },
-  8: { perch: [50, 86], tip: [80, 162], wind: [100, 160], fly: [90, 112] },
-  9: { perch: [50, 86], wind: [100, 160] },
-  10: { perch: [27, 140], tip: [80, 162], wind: [100, 160], fly: [90, 112] },
+  4: { tip: [76, 215], wind: [180, 210] },
+  5: { tip: [80, 218], wind: [160, 205] },
+  6: { tip: [78, 198], wind: [140, 190] },
+  7: { tip: [78, 180], wind: [120, 175] },
+  8: { tip: [80, 162], wind: [100, 160] },
+  9: { wind: [100, 160] },
+  10: { tip: [80, 162], wind: [100, 160] },
 };
 
-export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: number }) {
+/** `full` adds the wind and the falling needle/snow; `calm` is sway only
+ * (used for most trees in a crowded scene). */
+export function GrowthTree({
+  stage,
+  scale = 1,
+  ambient = "full",
+}: {
+  stage: GrowthStage;
+  scale?: number;
+  ambient?: "full" | "calm";
+}) {
+  const full = ambient === "full";
   const prevStage = useRef(stage);
   // Stable per-tree phase/tempo so several trees never move in sync.
   const seed = [...useId()].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
@@ -170,6 +180,7 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
       </defs>
 
       {/* Wind: two faint streaks at the tree's own height, blowing left to right. */}
+      {full && (
       <g fill="none" stroke="#f2f0ea" strokeWidth="1.2" strokeLinecap="round" shapeRendering="geometricPrecision">
         <path className="wind" style={delay(0)} d={`M2 ${scene.wind[0]} q10 -7 20 0 t20 0`} />
         <path
@@ -178,58 +189,20 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
           d={`M8 ${scene.wind[1]} q9 -6 18 0 t18 0`}
         />
       </g>
-
-      {/* Ladybug on the soil while the plant is still small. */}
-      {stage <= 3 && (
-        <g transform="translate(50 240)">
-          <g className="crawl" style={delay(4)}>
-            <rect x="-3" y="-3" width="6" height="4" rx="1.5" fill="#e0523a" />
-            <rect x="-0.5" y="-3" width="1" height="4" fill="#1c1000" />
-            <rect x="2" y="-2.5" width="2" height="2.5" fill="#1c1000" />
-            <rect x="-1.5" y="-2" width="1" height="1" fill="#1c1000" />
-            <rect x="0.7" y="-1" width="1" height="1" fill="#1c1000" />
-          </g>
-        </g>
       )}
 
       <g className="tree-sway" style={sway}>
         <use href={`#stage-${stage}`} />
-        {/* A small bird perched on the tree top (on a tier tip for the star pine). */}
-        {scene.perch && (
-          <g transform={`translate(${scene.perch[0]} ${scene.perch[1]})`}>
-            <g className="hop" style={delay(5)}>
-              <rect x="4" y="-4" width="3" height="2" fill="#b5533b" />
-              <rect x="-4" y="-5" width="8" height="5" fill="#e0725a" />
-              <rect x="-6" y="-7" width="4" height="4" fill="#e0725a" />
-              <rect x="-2" y="-4" width="4" height="2.5" fill="#b5533b" />
-              <rect x="-8" y="-6" width="2" height="1.5" fill="#ffcc00" />
-              <rect x="-5" y="-6" width="1" height="1" fill="#1c1000" />
-              <rect x="-2" y="0" width="1" height="1.5" fill="#ffcc00" />
-              <rect x="1" y="0" width="1" height="1.5" fill="#ffcc00" />
-            </g>
-          </g>
-        )}
       </g>
-
-      {/* A butterfly circling the fuller trees. */}
-      {scene.fly && (
-        <g transform={`translate(${scene.fly[0]} ${scene.fly[1]})`} shapeRendering="geometricPrecision" aria-hidden="true">
-          <g className="flutter" style={delay(6)}>
-            <ellipse className="flap" cx="-2" cy="0" rx="2.2" ry="2.8" fill="#f2a0c0" />
-            <ellipse className="flap" cx="2" cy="0" rx="2.2" ry="2.8" fill="#f2a0c0" />
-            <rect x="-0.4" y="-2" width="0.8" height="4.5" rx="0.4" fill="#1c1000" />
-          </g>
-        </g>
-      )}
 
       {/* A needle lets go of the canopy edge and spirals down (snow falls from the sky on the winter pine). */}
       <g shapeRendering="geometricPrecision" aria-hidden="true">
-        {scene.tip && (
+        {full && scene.tip && (
           <g transform={`translate(${scene.tip[0]} ${scene.tip[1]})`}>
             <path className="drift" style={delay(2)} d="M0 0 l4 -2 l3 2 l-4 2z" fill="#4a8f3d" />
           </g>
         )}
-        {stage === 9 &&
+        {full && stage === 9 &&
           [18, 52, 84].map((x, i) => (
             <g key={x} transform={`translate(${x} 58)`}>
               <circle className="fall" style={{ ...delay(i * 1.3), animationDuration: `${8 + i}s` }} r="1.3" fill="#f0f6fc" />

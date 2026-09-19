@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { GrowthTree } from "../components/GrowthTree";
+import { Orchard } from "../components/Orchard";
 import { GearIcon } from "../components/icons";
 import {
   ArchivedHabitRow,
   HabitStatsSheet,
-  HabitTreeCard,
   ReminderSettingsSheet,
 } from "../components/HabitParts";
 import { useHabitLogs, useHabits } from "../features/habits/hooks";
@@ -24,11 +24,6 @@ export function GardenPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsHabit, setStatsHabit] = useState<Habit | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   const growth = useMemo(() => growthStage(habits, logs, todos), [habits, logs, todos]);
   const insight = useMemo(() => weekdayInsight(habits, logs), [habits, logs]);
@@ -106,18 +101,7 @@ export function GardenPage() {
               <h2 className="mb-2 text-xs text-[var(--ink-muted)]">
                 Orchard
               </h2>
-              <div className="grid grid-cols-3 gap-x-2 gap-y-5">
-                {active.map((habit, i) => (
-                  <HabitTreeCard
-                    key={habit.id}
-                    habit={habit}
-                    logs={logs}
-                    onOpen={() => setStatsHabit(habit)}
-                    mounted={mounted}
-                    delayMs={i * 30}
-                  />
-                ))}
-              </div>
+              <Orchard habits={active} logs={logs} onOpen={setStatsHabit} />
             </section>
           )}
 

@@ -4,7 +4,6 @@ import { DotStrip } from "./DotStrip";
 import { KindSwitch } from "./KindSwitch";
 import { useUndoToast } from "../lib/toast";
 import { HabitCalendar } from "./HabitCalendar";
-import { GrowthTree } from "./GrowthTree";
 import { CalendarIcon, CheckIcon, TrashIcon } from "./icons";
 import {
   useAddHabit,
@@ -20,8 +19,7 @@ import { habitLogsRepo, habitsRepo } from "../data/habits";
 import { todosRepo } from "../data/todos";
 import type { Habit, HabitLog, ReminderSettings, Weekday } from "../data/types";
 import { addDays, formatDueDate, isScheduledOn, toISODate, todayISO, weekdayLabel } from "../lib/dates";
-import { bestStreak, buildStrip, completionRate, currentStreak, growthMomentum } from "../lib/streak";
-import { stageForStreak } from "../lib/growth";
+import { bestStreak, buildStrip, completionRate, currentStreak } from "../lib/streak";
 import { subscribeToPush } from "../lib/useReminderCheck";
 
 const STATS_DAYS = 30;
@@ -326,63 +324,6 @@ function StatTile({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-export const HabitTreeCard = memo(function HabitTreeCard({
-  habit,
-  logs,
-  onOpen,
-  mounted,
-  delayMs,
-}: {
-  habit: Habit;
-  logs: HabitLog[];
-  onOpen: () => void;
-  mounted: boolean;
-  delayMs: number;
-}) {
-  const { streak, stage, state } = useMemo(() => {
-    const today = todayISO();
-    const scheduled = isScheduledOn(habit.frequency, today);
-    const done = logs.some((l) => l.habit_id === habit.id && l.log_date === today);
-    return {
-      streak: currentStreak(habit, logs),
-      stage: stageForStreak(growthMomentum(habit, logs)),
-      state: !scheduled ? "rest" : done ? "done" : "open",
-    } as const;
-  }, [habit, logs]);
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${habit.name}${streak > 0 ? `, ${streak} day streak` : ""}${state === "done" ? ", done today" : ""}`}
-      style={{
-        opacity: mounted ? 1 : 0,
-        transform: mounted ? "translateY(0)" : "translateY(4px)",
-        transition: `opacity 320ms ease-out ${delayMs}ms, transform 320ms ease-out ${delayMs}ms`,
-      }}
-      className="flex min-w-0 flex-col items-center gap-1 text-center"
-    >
-      {/* Shared baseline: every tree stands on the same ground line. */}
-      <div
-        className="flex h-[124px] items-end transition-opacity"
-        style={{ opacity: state === "done" ? 1 : state === "open" ? 0.6 : 0.35 }}
-      >
-        <GrowthTree stage={stage} scale={0.75 + stage * 0.045} />
-      </div>
-      <div className="h-1.5 w-10 rounded-full bg-[var(--ink)] opacity-[0.07]" />
-      <p
-        className={`mt-1 w-full truncate text-sm ${state === "rest" ? "text-[var(--ink-muted)]" : "text-[var(--ink)]"}`}
-      >
-        {habit.name}
-      </p>
-      <p className="flex h-4 items-center gap-1.5 font-[family-name:var(--font-display)] text-xs text-[var(--accent)]">
-        {state === "done" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />}
-        {streak > 0 && `${streak}d`}
-      </p>
-    </button>
-  );
-});
 
 export const ArchivedHabitRow = memo(function ArchivedHabitRow({
   habit,
