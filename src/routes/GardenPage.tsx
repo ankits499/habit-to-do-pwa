@@ -13,6 +13,7 @@ import { useTodos } from "../features/todos/hooks";
 import type { Habit } from "../data/types";
 import { addDays, formatDueDate, toISODate, todayISO } from "../lib/dates";
 import { growthStage, STAGE_LABEL, type GrowthStage } from "../lib/growth";
+import { weekdayInsight } from "../lib/insights";
 
 const HEAT_DAYS = 30;
 
@@ -30,6 +31,7 @@ export function GardenPage() {
   }, []);
 
   const growth = useMemo(() => growthStage(habits, logs, todos), [habits, logs, todos]);
+  const insight = useMemo(() => weekdayInsight(habits, logs), [habits, logs]);
   const active = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archived = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const liveStatsHabit = statsHabit ? (habits.find((h) => h.id === statsHabit.id) ?? statsHabit) : null;
@@ -80,6 +82,8 @@ export function GardenPage() {
                 : "Fully grown"}
             </p>
           </div>
+
+          {insight && <p className="mb-6 text-center text-sm text-[var(--ink-muted)]">{insight}</p>}
 
           <section>
             <h2 className="mb-2 text-xs text-[var(--ink-muted)]">

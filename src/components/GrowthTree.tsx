@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { GrowthStage } from "../lib/growth";
 
 const BASE_WIDTH = 56;
@@ -6,6 +6,9 @@ const BASE_HEIGHT = 102;
 
 export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: number }) {
   const prevStage = useRef(stage);
+  // Stable per-tree phase/tempo so several trees never move in sync.
+  const seed = [...useId()].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const sway = { animationDelay: `-${seed % 7000}ms`, animationDuration: `${6500 + (seed % 1800)}ms` };
   const [justGrew, setJustGrew] = useState(false);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
       shapeRendering="crispEdges"
       role="img"
       aria-label={`growth stage ${stage}`}
-      className={`shrink-0 tree-sway transition-opacity duration-500 ${justGrew ? "tree-grow" : ""}`}
+      className={`shrink-0 transition-opacity duration-500 ${justGrew ? "tree-grow" : ""}`}
     >
       <defs>
         {/* Stage 1: Seed in Mound */}
@@ -139,14 +142,16 @@ export function GrowthTree({ stage, scale = 1 }: { stage: GrowthStage; scale?: n
             stroke="#ff9900"
             strokeWidth="1.5"
           />
-          <circle cx="34" cy="90" r="2" fill="#ffe066" opacity="0.8" />
-          <circle cx="68" cy="85" r="2.5" fill="#ffe066" opacity="0.9" />
-          <circle cx="28" cy="120" r="1.5" fill="#ffe066" opacity="0.7" />
-          <circle cx="74" cy="115" r="2" fill="#ffe066" opacity="0.8" />
+          <circle className="twinkle" style={{ animationDelay: "-700ms" }} cx="34" cy="90" r="2" fill="#ffe066" opacity="0.8" />
+          <circle className="twinkle" style={{ animationDelay: "-1400ms" }} cx="68" cy="85" r="2.5" fill="#ffe066" opacity="0.9" />
+          <circle className="twinkle" style={{ animationDelay: "-2100ms" }} cx="28" cy="120" r="1.5" fill="#ffe066" opacity="0.7" />
+          <circle className="twinkle" style={{ animationDelay: "-2800ms" }} cx="74" cy="115" r="2" fill="#ffe066" opacity="0.8" />
         </g>
       </defs>
 
-      <use href={`#stage-${stage}`} />
+      <g className="tree-sway" style={sway}>
+        <use href={`#stage-${stage}`} />
+      </g>
     </svg>
   );
 }

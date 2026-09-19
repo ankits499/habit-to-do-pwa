@@ -2,10 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { todosRepo } from "../../data/todos";
 import type { Todo } from "../../data/types";
 
-const KEY = ["todos"];
+export const TODOS_KEY = ["todos"];
 
 export function useTodos() {
-  return useQuery({ queryKey: KEY, queryFn: todosRepo.list });
+  return useQuery({ queryKey: TODOS_KEY, queryFn: todosRepo.list });
 }
 
 /** Cancels in-flight fetches for `key` and snapshots the current cache so a
@@ -32,19 +32,19 @@ function settleOnce(
   }
 }
 
-const ADD_KEY = ["addTodo"];
-const TOGGLE_KEY = ["toggleTodo"];
-const EDIT_KEY = ["editTodo"];
-const DELETE_KEY = ["deleteTodo"];
+export const ADD_TODO_KEY = ["addTodo"];
+export const TOGGLE_TODO_KEY = ["toggleTodo"];
+export const EDIT_TODO_KEY = ["editTodo"];
+export const DELETE_TODO_KEY = ["deleteTodo"];
 
 export function useAddTodo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationKey: ADD_KEY,
+    mutationKey: ADD_TODO_KEY,
     mutationFn: ({ text, due_date }: { text: string; due_date: string | null }) =>
       todosRepo.add(text, due_date),
     onMutate: async ({ text, due_date }) => {
-      const previous = await beginOptimistic<Todo[]>(qc, KEY);
+      const previous = await beginOptimistic<Todo[]>(qc, TODOS_KEY);
       const optimistic: Todo = {
         id: `optimistic-${crypto.randomUUID()}`,
         text,
@@ -53,58 +53,58 @@ export function useAddTodo() {
         created_at: new Date().toISOString(),
         completed_at: null,
       };
-      qc.setQueryData<Todo[]>(KEY, (old = []) => [...old, optimistic]);
+      qc.setQueryData<Todo[]>(TODOS_KEY, (old = []) => [...old, optimistic]);
       return { previous };
     },
-    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(KEY, ctx.previous),
-    onSettled: () => settleOnce(qc, ADD_KEY, KEY),
+    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(TODOS_KEY, ctx.previous),
+    onSettled: () => settleOnce(qc, ADD_TODO_KEY, TODOS_KEY),
   });
 }
 
 export function useToggleTodo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationKey: TOGGLE_KEY,
+    mutationKey: TOGGLE_TODO_KEY,
     mutationFn: ({ id, done }: { id: string; done: boolean }) => todosRepo.setDone(id, done),
     onMutate: async ({ id, done }) => {
-      const previous = await beginOptimistic<Todo[]>(qc, KEY);
-      qc.setQueryData<Todo[]>(KEY, (old = []) => old.map((t) =>
+      const previous = await beginOptimistic<Todo[]>(qc, TODOS_KEY);
+      qc.setQueryData<Todo[]>(TODOS_KEY, (old = []) => old.map((t) =>
           t.id === id ? { ...t, done, completed_at: done ? new Date().toISOString() : null } : t,
         ),);
       return { previous };
     },
-    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(KEY, ctx.previous),
-    onSettled: () => settleOnce(qc, TOGGLE_KEY, KEY),
+    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(TODOS_KEY, ctx.previous),
+    onSettled: () => settleOnce(qc, TOGGLE_TODO_KEY, TODOS_KEY),
   });
 }
 
 export function useEditTodo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationKey: EDIT_KEY,
+    mutationKey: EDIT_TODO_KEY,
     mutationFn: ({ id, patch }: { id: string; patch: Pick<Todo, "text" | "due_date"> }) =>
       todosRepo.edit(id, patch),
     onMutate: async ({ id, patch }) => {
-      const previous = await beginOptimistic<Todo[]>(qc, KEY);
-      qc.setQueryData<Todo[]>(KEY, (old = []) => old.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+      const previous = await beginOptimistic<Todo[]>(qc, TODOS_KEY);
+      qc.setQueryData<Todo[]>(TODOS_KEY, (old = []) => old.map((t) => (t.id === id ? { ...t, ...patch } : t)));
       return { previous };
     },
-    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(KEY, ctx.previous),
-    onSettled: () => settleOnce(qc, EDIT_KEY, KEY),
+    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(TODOS_KEY, ctx.previous),
+    onSettled: () => settleOnce(qc, EDIT_TODO_KEY, TODOS_KEY),
   });
 }
 
 export function useDeleteTodo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationKey: DELETE_KEY,
+    mutationKey: DELETE_TODO_KEY,
     mutationFn: (id: string) => todosRepo.remove(id),
     onMutate: async (id) => {
-      const previous = await beginOptimistic<Todo[]>(qc, KEY);
-      qc.setQueryData<Todo[]>(KEY, (old = []) => old.filter((t) => t.id !== id));
+      const previous = await beginOptimistic<Todo[]>(qc, TODOS_KEY);
+      qc.setQueryData<Todo[]>(TODOS_KEY, (old = []) => old.filter((t) => t.id !== id));
       return { previous };
     },
-    onError: (_err, _id, ctx) => ctx?.previous && qc.setQueryData(KEY, ctx.previous),
-    onSettled: () => settleOnce(qc, DELETE_KEY, KEY),
+    onError: (_err, _id, ctx) => ctx?.previous && qc.setQueryData(TODOS_KEY, ctx.previous),
+    onSettled: () => settleOnce(qc, DELETE_TODO_KEY, TODOS_KEY),
   });
 }

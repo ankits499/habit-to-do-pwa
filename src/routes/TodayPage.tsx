@@ -10,6 +10,7 @@ import { useTodos } from "../features/todos/hooks";
 import type { Habit } from "../data/types";
 import { isScheduledOn, toISODate, todayISO } from "../lib/dates";
 import { growthStage, STAGE_LABEL, type GrowthStage } from "../lib/growth";
+import { useStageUp } from "../lib/useStageUp";
 
 export function TodayPage() {
   const { data: habits = [], isLoading: habitsLoading } = useHabits();
@@ -43,6 +44,7 @@ export function TodayPage() {
   const pointsToday = growth.dayPoints.get(today) ?? 0;
   const loading = habitsLoading || todosLoading;
   const empty = !loading && habits.length === 0 && todos.length === 0;
+  const { grewTo, dismiss } = useStageUp(growth.stage, !loading);
 
   return (
     <div className="flex h-full flex-col">
@@ -85,6 +87,23 @@ export function TodayPage() {
                   {pointsToday > 0 && <span className="text-[var(--accent)]"> · +{pointsToday} growth</span>}
                 </p>
               </div>
+            </button>
+          )}
+
+          {grewTo && (
+            <button
+              type="button"
+              onClick={dismiss}
+              className="mt-2 flex w-full items-center justify-between rounded-lg bg-[var(--accent)]/10 px-4 py-3 text-left text-sm text-[var(--ink)]"
+            >
+              <span>
+                Your tree grew into a{" "}
+                <span className="font-[family-name:var(--font-display)] text-[var(--accent)]">
+                  {STAGE_LABEL[grewTo]}
+                </span>
+                .
+              </span>
+              <span className="text-xs text-[var(--ink-muted)]">Dismiss</span>
             </button>
           )}
 

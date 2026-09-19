@@ -62,10 +62,26 @@ button {
 @keyframes sway {
   0%,
   100% {
-    transform: rotate(-1deg);
+    transform: rotate(-1.2deg) skewX(-0.8deg) scaleY(1);
+  }
+  30% {
+    transform: rotate(0.6deg) skewX(0.5deg) scaleY(1.008);
+  }
+  55% {
+    transform: rotate(1.4deg) skewX(0.9deg) scaleY(1.004);
+  }
+  80% {
+    transform: rotate(-0.4deg) skewX(-0.3deg) scaleY(1.01);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
   }
   50% {
-    transform: rotate(1deg);
+    opacity: 1;
   }
 }
 
@@ -92,10 +108,17 @@ button {
   }
 }
 
+/* Applied to a <g> inside the tree svg so it can run alongside .tree-grow
+ * on the svg itself. Delay/duration are set per tree so a grove never sways
+ * in lockstep. */
 .tree-sway {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: sway 6s ease-in-out infinite;
+  animation: sway 7s ease-in-out infinite;
+}
+
+.twinkle {
+  animation: twinkle 3.2s ease-in-out infinite;
 }
 
 .tree-grow {
@@ -105,6 +128,11 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tree-sway,
+  .twinkle {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {

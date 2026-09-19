@@ -8,6 +8,7 @@ import { GardenPage } from "./routes/GardenPage";
 import { useToday } from "./lib/useToday";
 import { persister } from "./lib/persist";
 import { ToastProvider } from "./lib/toast";
+import { registerMutationDefaults } from "./lib/mutationDefaults";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -19,6 +20,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+registerMutationDefaults(queryClient);
 
 function AppShell() {
   const today = useToday();
@@ -41,12 +44,9 @@ function App() {
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{
-        persister,
-        maxAge: WEEK_MS,
-        // Queued offline writes aren't persisted (their functions can't be restored).
-        dehydrateOptions: { shouldDehydrateMutation: () => false },
-      }}
+      persistOptions={{ persister, maxAge: WEEK_MS }}
+      // Flush writes that were queued offline before the last reload.
+      onSuccess={() => void queryClient.resumePausedMutations()}
     >
       <AuthProvider>
         <ToastProvider>

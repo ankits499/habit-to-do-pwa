@@ -41,6 +41,8 @@ export function TodoGroup({
 function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
   const toggle = useToggleTodo();
   const [editing, setEditing] = useState(false);
+  // Not yet saved server-side; writes against the placeholder id would fail.
+  const pending = todo.id.startsWith("optimistic-");
 
   if (editing) {
     return <EditTodoRow todo={todo} onDone={() => setEditing(false)} />;
@@ -50,6 +52,7 @@ function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
     <li className="group flex items-center gap-3 py-3">
       <button
         type="button"
+        disabled={pending}
         aria-label={todo.done ? "Mark not done" : "Mark done"}
         onClick={() => toggle.mutate({ id: todo.id, done: !todo.done })}
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
@@ -63,7 +66,7 @@ function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
         </svg>
       </button>
 
-      <button type="button" onClick={() => setEditing(true)} className="min-w-0 flex-1 text-left">
+      <button type="button" disabled={pending} onClick={() => setEditing(true)} className="min-w-0 flex-1 text-left">
         <p
           className={`truncate text-[15px] ${
             todo.done || muted ? "text-[var(--ink-muted)] line-through" : "text-[var(--ink)]"

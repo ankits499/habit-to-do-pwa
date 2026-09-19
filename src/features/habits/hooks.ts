@@ -3,8 +3,8 @@ import { habitLogsRepo, habitsRepo } from "../../data/habits";
 import type { Habit, HabitLog, Weekday } from "../../data/types";
 import { todayISO } from "../../lib/dates";
 
-const HABITS_KEY = ["habits"];
-const LOGS_KEY = ["habit_logs"];
+export const HABITS_KEY = ["habits"];
+export const LOGS_KEY = ["habit_logs"];
 
 /** Cancels in-flight fetches for `key` and snapshots the current cache so a
  * failed mutation can roll back to it. */
@@ -37,12 +37,11 @@ export function useHabitLogs() {
   return useQuery({ queryKey: LOGS_KEY, queryFn: habitLogsRepo.listAll });
 }
 
-const ADD_HABIT_KEY = ["addHabit"];
-const EDIT_HABIT_KEY = ["editHabit"];
-const SET_ARCHIVED_KEY = ["setHabitArchived"];
-const DELETE_HABIT_KEY = ["deleteHabit"];
-const TOGGLE_TODAY_KEY = ["toggleHabitToday"];
-const TOGGLE_DATE_KEY = ["toggleHabitForDate"];
+export const ADD_HABIT_KEY = ["addHabit"];
+export const EDIT_HABIT_KEY = ["editHabit"];
+export const SET_ARCHIVED_KEY = ["setHabitArchived"];
+export const DELETE_HABIT_KEY = ["deleteHabit"];
+export const TOGGLE_DATE_KEY = ["toggleHabitForDate"];
 
 export function useAddHabit() {
   const qc = useQueryClient();
@@ -121,29 +120,9 @@ export function useDeleteHabit() {
   });
 }
 
-export function useToggleHabitToday() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationKey: TOGGLE_TODAY_KEY,
-    mutationFn: ({ habitId, done }: { habitId: string; done: boolean }) =>
-      habitLogsRepo.setDone(habitId, todayISO(), done),
-    onMutate: async ({ habitId, done }) => {
-      const previous = await beginOptimistic<HabitLog[]>(qc, LOGS_KEY);
-      const today = todayISO();
-      qc.setQueryData<HabitLog[]>(LOGS_KEY, (old = []) =>
-        done
-          ? [...old, { habit_id: habitId, log_date: today }]
-          : old.filter((l) => !(l.habit_id === habitId && l.log_date === today)),
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(LOGS_KEY, ctx.previous),
-    onSettled: () => settleOnce(qc, TOGGLE_TODAY_KEY, LOGS_KEY),
-  });
-}
-
-/** Same as {@link useToggleHabitToday} but for an arbitrary date, so a
- * forgotten check-in from a previous day can still be logged. */
+/** Toggles a habit's log for an arbitrary date, so a forgotten check-in from
+ * a previous day can still be logged. The date lives in the variables (not
+ * read at run time) so a write queued offline lands on the right day. */
 export function useToggleHabitForDate() {
   const qc = useQueryClient();
   return useMutation({
@@ -162,4 +141,13 @@ export function useToggleHabitForDate() {
     onError: (_err, _vars, ctx) => ctx?.previous && qc.setQueryData(LOGS_KEY, ctx.previous),
     onSettled: () => settleOnce(qc, TOGGLE_DATE_KEY, LOGS_KEY),
   });
+}
+
+/** Today-only convenience over {@link useToggleHabitForDate}. */
+export function useToggleHabitToday() {
+  const { mutate } = useToggleHabitForDate();
+  return {
+    mutate: ({ habitId, done }: { habitId: string; done: boolean }) =>
+      mutate({ habitId, date: todayISO(), done }),
+  };
 }
