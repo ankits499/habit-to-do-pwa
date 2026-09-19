@@ -1,15 +1,21 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { BottomNav } from "./components/BottomNav";
 import { TodayPage } from "./routes/TodayPage";
 import { GardenPage } from "./routes/GardenPage";
 import { useToday } from "./lib/useToday";
+import { persister } from "./lib/persist";
+import { ToastProvider } from "./lib/toast";
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
+      gcTime: WEEK_MS, // must be >= persist maxAge or restored data is dropped
     },
   },
 });
@@ -33,13 +39,23 @@ function AppShell() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: WEEK_MS,
+        // Queued offline writes aren't persisted (their functions can't be restored).
+        dehydrateOptions: { shouldDehydrateMutation: () => false },
+      }}
+    >
       <AuthProvider>
-        <HashRouter>
-          <AppShell />
-        </HashRouter>
+        <ToastProvider>
+          <HashRouter>
+            <AppShell />
+          </HashRouter>
+        </ToastProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 

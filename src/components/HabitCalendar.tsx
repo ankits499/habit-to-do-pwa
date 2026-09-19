@@ -31,7 +31,7 @@ export function HabitCalendar({
 
   return (
     <div>
-      <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+      <p className="mb-2 text-center text-xs text-[var(--ink-muted)]">
         {month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
       </p>
       <div className="grid grid-cols-7 gap-1.5">

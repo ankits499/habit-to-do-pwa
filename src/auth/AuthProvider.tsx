@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
+import { persister } from "../lib/persist";
 
 type AuthContextValue = {
   user: User;
@@ -11,12 +13,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      // Don't leave one account's cached data on the device for the next.
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+        persister.removeClient();
+      }
+      setSession(next);
+    });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   if (session === undefined) return null;
 

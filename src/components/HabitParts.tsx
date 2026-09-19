@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { DotStrip } from "./DotStrip";
 import { KindSwitch } from "./KindSwitch";
+import { useUndoToast } from "../lib/toast";
 import { HabitCalendar } from "./HabitCalendar";
 import { GrowthTree } from "./GrowthTree";
 import { CalendarIcon, CheckIcon, TrashIcon } from "./icons";
@@ -215,6 +216,7 @@ export function HabitStatsSheet({
 
   const edit = useEditHabit();
   const setArchived = useSetHabitArchived();
+  const undoable = useUndoToast();
   const remove = useDeleteHabit();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(habit.name);
@@ -289,7 +291,11 @@ export function HabitStatsSheet({
               <button
                 type="button"
                 onClick={() => {
-                  setArchived.mutate({ id: habit.id, archived: !habit.archived });
+                  const archived = !habit.archived;
+                  setArchived.mutate({ id: habit.id, archived });
+                  undoable(archived ? "Habit archived" : "Habit restored", () =>
+                    setArchived.mutate({ id: habit.id, archived: !archived }),
+                  );
                   close();
                 }}
                 className="flex-1 rounded-full border border-[var(--line)] py-2 text-sm font-medium text-[var(--ink)]"
@@ -314,7 +320,7 @@ export function HabitStatsSheet({
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] px-3 py-2.5">
+    <div className="py-1">
       <p className="font-[family-name:var(--font-display)] text-lg text-[var(--ink)]">{value}</p>
       <p className="text-[11px] text-[var(--ink-muted)]">{label}</p>
     </div>
@@ -437,7 +443,7 @@ export function AddHabitSheet({ onDone, onSwitch }: { onDone: () => void; onSwit
           />
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+            <p className="mb-2 text-xs text-[var(--ink-muted)]">
               Frequency
             </p>
             <div className="flex items-center gap-2">
@@ -452,7 +458,7 @@ export function AddHabitSheet({ onDone, onSwitch }: { onDone: () => void; onSwit
 
           {mode === "weekdays" && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+              <p className="mb-2 text-xs text-[var(--ink-muted)]">
                 Days
               </p>
               <div className="flex flex-wrap gap-2">

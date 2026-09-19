@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { KindSwitch } from "./KindSwitch";
+import { useUndoToast } from "../lib/toast";
 import { CalendarIcon, TrashIcon, XIcon } from "./icons";
 import {
   useAddTodo,
@@ -82,6 +83,8 @@ function TodoRow({ todo, muted }: { todo: Todo; muted?: boolean }) {
 function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
   const edit = useEditTodo();
   const remove = useDeleteTodo();
+  const restore = useAddTodo();
+  const undoable = useUndoToast();
   const [text, setText] = useState(todo.text);
   const [dueDate, setDueDate] = useState(todo.due_date ?? "");
 
@@ -112,7 +115,11 @@ function EditTodoRow({ todo, onDone }: { todo: Todo; onDone: () => void }) {
           <button
             type="button"
             aria-label="Delete todo"
-            onClick={() => remove.mutate(todo.id)}
+            onClick={() => {
+              remove.mutate(todo.id);
+              // ponytail: undo re-creates the todo as open (new id/created_at).
+              undoable("Todo deleted", () => restore.mutate({ text: todo.text, due_date: todo.due_date }));
+            }}
             className="p-1.5 text-[var(--ink-muted)] transition-colors hover:text-[var(--danger)]"
           >
             <TrashIcon className="h-4 w-4" />
@@ -178,7 +185,7 @@ export function AddTodoSheet({ onDone, onSwitch }: { onDone: () => void; onSwitc
           />
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+            <p className="mb-2 text-xs text-[var(--ink-muted)]">
               Due
             </p>
             <div className="flex flex-wrap items-center gap-2">
